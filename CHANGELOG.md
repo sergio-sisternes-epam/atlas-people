@@ -41,8 +41,10 @@ the `person` type.
   both by `person_contract: v1`, and remember retypes a legacy page to
   `person` only on an Atlas where the overlay is mounted.
 - SKILL.md gains a **Mount the Atlas overlay** step: `apm install` never
-  mounts the overlay; after target confirmation and resolve, the skill asks
-  the operator and mounts it only on the confirmed target with
+  mounts the overlay, and Enter does not mount it either; the remember or
+  import-notes path module runs the mount once, after the path module's
+  gates pass and immediately before the first write, asking the operator
+  and mounting only on the confirmed target with
   `atlas.py schema install <pkg-root>/contributions/atlas-people --root
   <atlas-root>` and compile. The mount runs only on a real write run
   (remember or import-notes with `memory_sync: on`); query, previews, and

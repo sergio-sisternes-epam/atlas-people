@@ -62,29 +62,39 @@ Reload this checklist before list, before read, and before Atlas writes.
    `schema install`, no change to `schema.d/` or `templates/`); **do not**
    compile, commit, or push. Emit the import receipt with
    `memory_sync: off` and `overlay: skipped`, and stop.
-9. Only when `memory_sync: on`: before the first store write, run
-   SKILL.md **2. Mount the Atlas overlay** on the confirmed target, asking
-   the operator first. Then match against existing people pages:
-   - Hard identifiers only for auto-merge.
-   - Never auto-merge on name alone; single-token names stay unmerged.
-   - Ambiguous pairs → review queue (human checkpoint). Do not guess.
-10. Write/update person pages on the confirmed target Atlas only, with
-    source pointers `{kind: apple-notes, id: <note-id>, folder_id?, captured_at}`.
+9. Only when `memory_sync: on`: load EXTERNAL **`atlas`** path `mount`
+   for the confirmed target. If the live store is not provisioned →
+   **stop** writes with deferral `awaiting store provision`. Keep the
+   extraction/review receipt locally in the turn report only — do not
+   invent a tip. Resolved store differs from the confirmed `atlas_id` →
+   **stop**.
+10. Match against existing people pages (read-only, no write yet):
+    - Hard identifiers only for auto-merge.
+    - Never auto-merge on name alone; single-token names stay unmerged.
+    - Ambiguous pairs → planned review-queue entries (human checkpoint).
+      Do not guess.
+11. **Mount the overlay (once, before the first write).** Only now, with
+    `memory_sync: on` and steps 1–10 passed, run SKILL.md
+    **3. Mount the Atlas overlay** on the confirmed target, asking the
+    operator first. This is the only place this path mounts: a request
+    stopped by any earlier step never mounts, and it runs once per import,
+    not once per note. Record the `overlay:` result for the receipt.
+12. Write/update person pages and the planned review-queue entries on the
+    confirmed target Atlas only, with source pointers
+    `{kind: apple-notes, id: <note-id>, folder_id?, captured_at}`.
     Follow `references/person-page-schema.md` (new pages `type: person`;
     legacy `type: document` pages handled as in path `remember`) and path
     `remember` compile rules via EXTERNAL **`atlas`**. A confirmed target does **not**
     override `memory_sync: off` (already gated in step 8).
-11. If the live store is not provisioned → **stop** writes with deferral
-    `awaiting store provision`. Keep the extraction/review receipt
-    locally in the turn report only — do not invent a tip.
-12. When `compile_push: on` and the live store is reachable: compile green;
+13. When `compile_push: on` and the live store is reachable: compile green;
     EXTERNAL **`atlas-compile-commit-push`** to the operator-confirmed
     `<push-remote>`. When `compile_push: off`: **do not** compile for
     publication, commit, or push — leave local preview/write state as the
     receipt describes and stop.
-13. Emit import receipt: notes read, persons created/updated (or previewed),
-    skips, review-queue size, tip SHA (or deferral / dry-run reason).
-14. **Stop.** No watcher. Continuous sync needs a new approved design.
+14. Emit import receipt: notes read, persons created/updated (or previewed),
+    skips, review-queue size, `overlay:` result, tip SHA (or deferral /
+    dry-run reason).
+15. **Stop.** No watcher. Continuous sync needs a new approved design.
 
 ## Outputs
 

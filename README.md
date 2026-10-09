@@ -89,7 +89,8 @@ frontmatter. It claims no folder, carries no extension slot, and redeclares
 no core type. `apm install` never mounts it: the skill asks the operator,
 then mounts it only on the confirmed target Atlas, and only on a real write
 run (remember or import-notes with `memory_sync: on`; never for query or a
-dry run):
+dry run). The path module mounts it once, after the path module's gates
+pass and immediately before the first write:
 
 ```bash
 python3 <atlas-skill>/scripts/atlas.py schema install \

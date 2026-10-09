@@ -235,12 +235,14 @@ it — never a cwd-relative reinvented copy.
    operator to confirm (writes) or name (query) the Atlas again.
 4. Emit the activation card with **every field filled**, including the
    resolved `atlas_root`. Missing resolve → incomplete card → **stop**.
-5. For remember and import-notes with `memory_sync: on` (a real write run),
-   run **2. Mount the Atlas overlay** on the confirmed target before the
-   first write. **Skip the mount** for query and for any preview or dry run
-   (`memory_sync: off`): no `schema install`, no compile, no change to
-   `schema.d/` or `templates/`.
-6. Load the matching LOCAL path module under `references/paths/` and follow it.
+5. Load the matching LOCAL path module under `references/paths/` and follow
+   it. **Enter does not mount the Atlas overlay.** For remember and
+   import-notes with `memory_sync: on` (a real write run), the path module
+   runs **3. Mount the Atlas overlay** exactly once, after the path
+   module's gates pass and immediately before the first write. A request
+   that any gate rejects never mounts. **Skip the mount** for query and for
+   any preview or dry run (`memory_sync: off`): no `schema install`, no
+   compile, no change to `schema.d/` or `templates/`.
 
 ### 1. Mount (all paths that need the store)
 
@@ -254,14 +256,34 @@ it — never a cwd-relative reinvented copy.
    confirms the target again (query: stop reading until the operator names
    the Atlas again).
 
-### 2. Mount the Atlas overlay (confirmed target, write runs only)
+### 2. Path dispatch
+
+| Path | Load | Summary |
+| --- | --- | --- |
+| query | `references/paths/query.md` | Look up people / edges; synthesise with source pointers |
+| remember | `references/paths/remember.md` | Write/update person pages and typed edges; compile; push |
+| import-notes | `references/paths/import-notes.md` | One-shot Notes import; id-safe; review queue; no watcher |
+
+Person page contract: `references/person-page-schema.md`.
+
+The remember and import-notes modules invoke **3. Mount the Atlas overlay**
+themselves, once, from inside their validated write flow; it is not a
+separate step between Enter and the path module.
+
+### 3. Mount the Atlas overlay (confirmed target, write runs only)
 
 This package ships an Atlas overlay at `contributions/atlas-people/` that
 declares the type `person` (see `contributions/atlas-people/README.md`).
 `apm install` only installs the skill package; it never mounts the overlay
 into any Atlas. Mounting is a separate, explicit step through EXTERNAL
-**`atlas`** path `schema`, run after target confirmation and resolve
-(**0. Enter**) and before the first write.
+**`atlas`** path `schema`. It is never run from **0. Enter**: the remember
+or import-notes path module invokes it exactly once per run, after the path
+module's gates pass (target confirmed, secret-class content redacted or
+rejected, Notes ids and import scope valid, Notes access approved, store
+resolved, merge review settled) and immediately before the first write
+(person page, edge, or review-queue entry). A request that any gate
+rejects never reaches this step, so it never changes `schema.d/` or
+`templates/`. Later writes in the same run do not re-run it or ask again.
 
 Mount only on a real write run: path remember or import-notes with
 `memory_sync: on`. **Skip this step** for query and for previews or dry
@@ -345,16 +367,6 @@ file or `schema.d/`; the operator may delete it.
 `type: person` on them only where the overlay is mounted
 (`references/person-page-schema.md`).
 
-### 3. Path dispatch
-
-| Path | Load | Summary |
-| --- | --- | --- |
-| query | `references/paths/query.md` | Look up people / edges; synthesise with source pointers |
-| remember | `references/paths/remember.md` | Write/update person pages and typed edges; compile; push |
-| import-notes | `references/paths/import-notes.md` | One-shot Notes import; id-safe; review queue; no watcher |
-
-Person page contract: `references/person-page-schema.md`.
-
 ### 4. Compile + push (Pins 8–10)
 
 After Atlas writes, when `compile_push: on` and the live store is reachable:
@@ -377,7 +389,7 @@ deferral and do not claim a tip.
 - [ ] Operator asked which Atlas the person pages should be stored in (known or bound Atlases offered; any other allowed)
 - [ ] Target explicitly confirmed by the operator before the first write; re-confirmed if it changed
 - [ ] No target refused on policy grounds; privacy note given as advice only when the target is shared, work/project, or public
-- [ ] Atlas overlay (write runs with `memory_sync: on` only): operator asked before mounting on the confirmed target only (`schema install <pkg-root>/contributions/atlas-people`, then compile green), or already current, or declined (advisory); skipped for query and dry runs; package ref recorded on the exit receipt
+- [ ] Atlas overlay (write runs with `memory_sync: on` only): never mounted from Enter; mounted at most once, by the remember / import-notes path module after its gates passed and immediately before the first write; operator asked before mounting on the confirmed target only (`schema install <pkg-root>/contributions/atlas-people`, then compile green), or already current, or declined (advisory); skipped for query, dry runs, and requests a gate rejected; package ref recorded on the exit receipt
 - [ ] After a package upgrade, the mount re-run from the new package root (`schema uninstall atlas-people`, then `schema install <new-pkg-root>/contributions/atlas-people`, then compile) on each Atlas that holds the overlay, after asking the operator
 - [ ] New person pages use `type: person`; legacy `type: document` pages retyped only where the overlay is mounted
 - [ ] Path module followed; person contract observed
@@ -427,4 +439,4 @@ placeholders only.
 The install does not touch any Atlas. The package's Atlas overlay
 (`contributions/atlas-people/`, type `person`) is mounted separately, only
 on the confirmed target, on a write run, and with the operator's agreement:
-see **2. Mount the Atlas overlay** above.
+see **3. Mount the Atlas overlay** above.

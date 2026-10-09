@@ -90,14 +90,54 @@ smokes:
     expect: the overlay mount runs only on a real write run (memory_sync on); query, previews, and dry runs skip it so no schema.d/ or templates/ mutation happens
     check: |
       flat() { tr -s '\n ' '  ' < "$1"; }
-      flat SKILL.md | grep -F 'For remember and import-notes with `memory_sync: on` (a real write run), run **2. Mount the Atlas overlay**' >/dev/null
       flat SKILL.md | grep -F '**Skip the mount** for query and for any preview or dry run (`memory_sync: off`): no `schema install`, no compile, no change to `schema.d/` or `templates/`' >/dev/null
       flat SKILL.md | grep -F '**Skip this step** for query and for previews or dry runs (`memory_sync: off`)' >/dev/null
-      flat SKILL.md | grep -F '### 2. Mount the Atlas overlay (confirmed target, write runs only)' >/dev/null
+      flat SKILL.md | grep -F '### 3. Mount the Atlas overlay (confirmed target, write runs only)' >/dev/null
       for f in references/paths/remember.md references/paths/import-notes.md; do
         flat "$f" | grep -F 'do not** mount the Atlas overlay (no `schema install`, no change to `schema.d/` or `templates/`)' >/dev/null || { echo "missing dry-run mount skip: $f"; exit 1; }
       done
       flat references/paths/query.md | grep -F 'Do **not** mount the Atlas overlay' >/dev/null
+  - id: skill-mount-after-path-gates
+    source: review-feedback-mount-timing
+    expect: Enter never mounts the overlay; the remember and import-notes path modules each invoke the mount exactly once, after the path module's gates and before the first write, so a rejected request never changes schema.d/ or templates/
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      enter="$(flat SKILL.md | sed -n 's/.*### 0\. Enter\(.*\)### 1\. Mount (all paths.*/\1/p')"
+      test -n "$enter" || { echo "Enter section not found"; exit 1; }
+      printf '%s' "$enter" | grep -F 'Load the matching LOCAL path module' >/dev/null
+      printf '%s' "$enter" | grep -F '**Enter does not mount the Atlas overlay.**' >/dev/null
+      printf '%s' "$enter" | grep -F 'exactly once, after the path module'"'"'s gates pass and immediately before the first write' >/dev/null
+      if printf '%s' "$enter" | grep -E 'run \*\*[0-9]\. Mount the Atlas overlay\*\* on the confirmed target' >/dev/null; then echo "Enter still mounts the overlay"; exit 1; fi
+      flat SKILL.md | grep -F 'It is never run from **0. Enter**' >/dev/null
+      flat SKILL.md | grep -F 'invokes it exactly once per run, after the path module'"'"'s gates pass' >/dev/null
+      flat SKILL.md | grep -F 'and immediately before the first write (person page, edge, or review-queue entry)' >/dev/null
+      flat SKILL.md | grep -F 'never mounted from Enter; mounted at most once, by the remember / import-notes path module after its gates passed and immediately before the first write' >/dev/null
+      if flat SKILL.md | grep -F 'run after target confirmation and resolve (**0. Enter**)' >/dev/null; then echo "mount still timed from Enter"; exit 1; fi
+      check_order() {
+        f="$1"; shift
+        n="$(grep -c -F 'Mount the Atlas overlay**' "$f")"
+        [ "$n" -eq 1 ] || { echo "$f: expected exactly one mount invocation, got $n"; exit 1; }
+        mount_line="$(grep -n -F 'Mount the overlay (once, before the first write).' "$f" | cut -d: -f1)"
+        [ -n "$mount_line" ] || { echo "$f: mount step missing"; exit 1; }
+        for gate in "$@"; do
+          gl="$(grep -n -F -- "$gate" "$f" | head -1 | cut -d: -f1)"
+          [ -n "$gl" ] && [ "$gl" -lt "$mount_line" ] || { echo "$f: gate after mount or missing: $gate"; exit 1; }
+        done
+        for w in 'Write/update'; do
+          wl="$(grep -n -F -- "$w" "$f" | head -1 | cut -d: -f1)"
+          [ -n "$wl" ] && [ "$wl" -gt "$mount_line" ] || { echo "$f: first write not after mount"; exit 1; }
+        done
+      }
+      check_order references/paths/remember.md \
+        'Reject secret-class content' 'Title-only → **stop**' '**Dry-run gate' \
+        'awaiting store provision' '**do not auto-merge**'
+      check_order references/paths/import-notes.md \
+        'whole library' 'Mac + Automation approval' 'require operator confirm (I4)' \
+        'Redact secret-class' '**Dry-run gate' 'awaiting store provision' \
+        'Never auto-merge on name alone'
+      for f in references/paths/remember.md references/paths/import-notes.md; do
+        flat "$f" | grep -F 'This is the only place this path mounts: a request stopped by any earlier step never mounts' >/dev/null || { echo "missing single-mount wording: $f"; exit 1; }
+      done
   - id: person-type-and-legacy
     source: owner-design-person-type
     expect: new person pages use type person; v0.1.2 type document pages stay valid and are recognised by person_contract v1

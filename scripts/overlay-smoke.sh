@@ -7,7 +7,9 @@
 # 1. Static check (always): overlay root keys are contract-only
 #    (contribution_id, templates), contribution_id is atlas-people, the only
 #    type is the new type `person` (no core redeclaration), at most 8 required
-#    frontmatter keys, every template file exists. When an Atlas checkout's
+#    frontmatter keys, every declared type has a string `file` naming a
+#    template that exists under contributions/atlas-people/ (an absent or
+#    non-string `file` fails). When an Atlas checkout's
 #    scripts/atlas_cli/schemas/contribution-v1.schema.json and the Python
 #    jsonschema package are available, the overlay is also validated against
 #    contribution-v1.
@@ -72,7 +74,11 @@ for name, spec in by_type.items():
     if len(required) > 8:
         errors.append(f"{name}: {len(required)} required frontmatter keys (max 8)")
     f = (spec or {}).get("file")
-    if f and not (contrib / f).is_file():
+    if not isinstance(f, str) or not f.strip():
+        errors.append(f"{name}: template 'file' is missing or not a non-empty string: {f!r}")
+    elif not (contrib / f).resolve().is_relative_to(contrib.resolve()):
+        errors.append(f"{name}: template file escapes contributions/atlas-people/: {f}")
+    elif not (contrib / f).is_file():
         errors.append(f"{name}: template file missing: {f}")
 if errors:
     sys.exit("static check failed:\n  " + "\n  ".join(errors))
