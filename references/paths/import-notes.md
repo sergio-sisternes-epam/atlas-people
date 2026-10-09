@@ -4,27 +4,29 @@ Load after the `atlas-people` Enter card with `path: import-notes`.
 
 ## When
 
-Supervised **one-shot** Apple Notes import into the operator-confirmed
-target Atlas. Proves
-person-page shape. Not continuous sync.
+Supervised **one-shot** import from any notes app or export the operator
+chooses (e.g. Apple Notes, Obsidian, a Markdown export) into the
+operator-confirmed target Atlas. Proves person-page shape. Not continuous
+sync.
 
 ## Pins inherited
 
-- Folder scope required (no whole-library default)
+- Folder or collection scope required (no whole-library default)
 - Notes **id** for source pointers (title-only is a blocker)
 - Skip locked / unreadable notes (count only; do not invent bodies)
 - No name-only auto-merge; ambiguous → review queue
 - No watcher / schedule / continuous sync in v0
-- Secrets standing: redact password/SSN-class; 1Password is the vault only
+- Secrets standing: redact password/SSN-class; credentials live in the
+  operator's password manager or secret store (e.g. 1Password)
 - Honour Enter `memory_sync` / `compile_push` dry-run controls (below)
 
 ## Import plan memento (emit and keep live)
 
 | # | Field | Notes |
 | --- | --- | --- |
-| I1 | Folder scope | One or more **folder ids** (preferred) named by operator |
-| I2 | Cap | Inherit apple-notes list/search default cap (25); say when truncated |
-| I3 | Mac + Automation | EXTERNAL apple-notes prerequisites satisfied |
+| I1 | Folder/collection scope | One or more **folder or collection ids** named by operator |
+| I2 | Cap | Default cap of 25 notes per list/search; say when truncated |
+| I3 | Source access | Operator-chosen source is readable; no specific tool required |
 | I4 | Confirm | Explicit operator confirm for this one-shot scope |
 | I5 | Match policy | Hard ids only for auto-merge; name-only → review |
 | I6 | Secrets check | No password/SSN-class into Atlas |
@@ -73,13 +75,17 @@ Reload this checklist before list, before read, and before Atlas writes.
    local-only target (`push_remote: none`) is `private`. A dry run
    (`memory_sync: off`) writes nothing and needs no acknowledgement.
 3. If `import_scope` is missing / `none` / "whole library" without named
-   folders → **stop**. Refuse unbounded library export.
-4. Confirm Mac + Automation approval via EXTERNAL **`apple-notes`**
-   prerequisites. Load that skill and follow it exactly (S7 bridge).
+   folders or collections → **stop**. Refuse unbounded library export.
+4. Confirm the operator's chosen notes source and that it is readable. If
+   the operator has a reader skill or integration for that source, it may
+   be used and followed; none is required.
 5. Emit the import plan memento (above); require operator confirm (I4).
-6. Within scope only: EXTERNAL apple-notes **list/search** (cap); collect
-   note **id** + title + folder. Never dump bodies in logs.
-7. For each approved note: **read by note id**. On locked/unreadable:
+6. Within scope only: list/search the chosen source (default cap 25 notes
+   per list/search); say when results are truncated. Collect each note's
+   stable **id** + title + folder/collection. For a file export, the id is
+   the file path relative to the export root. Never dump bodies in logs.
+7. For each approved note: **read by stable note id** (or the relative
+   file path for an export). On locked/unreadable:
    increment skip count; do not invent a body.
 8. Extract candidate people + claims + excerpts. Redact secret-class
    strings before any Atlas write **or** preview.
@@ -110,7 +116,7 @@ Reload this checklist before list, before read, and before Atlas writes.
     not once per note. Record the `overlay:` result for the receipt.
 13. Write/update person pages and the planned review-queue entries on the
     confirmed target Atlas only, with source pointers
-    `{kind: apple-notes, id: <note-id>, folder_id?, captured_at}`.
+    `{kind: notes, app?: <source-app>, id: <note-id>, folder_id?, captured_at}`.
     Follow `references/person-page-schema.md` (new pages `type: person`;
     legacy `type: document` pages handled as in path `remember`) and path
     `remember` compile rules via EXTERNAL **`atlas`**. A confirmed target does **not**
@@ -140,7 +146,7 @@ Reload this checklist before list, before read, and before Atlas writes.
 
 - Locked notes (skip + count)
 - Title-only targeting
-- Whole-library without explicit folder scope
+- Whole-library without explicit folder or collection scope
 - Name-only merge attempts
 - Target not confirmed by the operator
 - Public or unknown-visibility target not acknowledged

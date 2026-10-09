@@ -52,8 +52,9 @@ relationship edge on the Atlas the operator chooses for person pages.
    local-only target (`push_remote: none`) is `private`. A dry run
    (`memory_sync: off`) writes nothing and needs no acknowledgement.
 3. Reject secret-class content (passwords, SSN-class). Redact or **stop**.
-4. Source pointers: for Apple Notes use **note id** (and folder id when
-   known). Title-only → **stop**.
+4. Source pointers: for a notes source use the **note id** (and folder id
+   when known). For a file export, use the file path relative to the export
+   root as the stable id. Title-only → **stop**.
 5. **Dry-run gate (`memory_sync: off`):** after redaction and **before**
    identity resolution or any store mutation, emit a read-only preview of
    the would-be person page / edge / review-queue entry. **Do not** resolve

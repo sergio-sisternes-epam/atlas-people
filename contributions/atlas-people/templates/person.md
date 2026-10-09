@@ -28,7 +28,7 @@ aliases: []
 
 ## Sources
 
-- apple-notes `<note-id>` (folder `<folder-id>`), captured YYYY-MM-DD
+- notes (<app>) `<note-id>` (folder `<folder-id>`), captured YYYY-MM-DD
 
 ## Relationships
 

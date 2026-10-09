@@ -45,7 +45,7 @@ smokes:
       for f in SKILL.md README.md references/paths/remember.md references/paths/import-notes.md; do
         rg -n -F 'incomplete: atlas target not confirmed' "$f" >/dev/null || { echo "missing stop string: $f"; exit 1; }
       done
-      rg -n '<target-atlas-id>' SKILL.md README.md references/paths/query.md references/paths/remember.md references/paths/import-notes.md references/person-page-schema.md
+      rg -n '<target-atlas-id>' SKILL.md README.md references/paths/recall.md references/paths/remember.md references/paths/import-notes.md references/person-page-schema.md
       rg -n '<push-remote>' SKILL.md README.md
       rg -n '<atlas-root>' SKILL.md README.md
   - id: privacy-advice-non-blocking

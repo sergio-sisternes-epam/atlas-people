@@ -1,10 +1,10 @@
-# Path: query
+# Path: recall
 
-Load after the `atlas-people` Enter card with `path: query`.
+Load after the `atlas-people` Enter card with `path: recall`.
 
 ## When
 
-Look up who someone is, how they relate, aliases, bios, history, or what was
+Recall who someone is, how they relate, aliases, bios, history, or what was
 noted about them on the Atlas the operator chooses for person pages.
 
 ## Inputs
@@ -16,7 +16,7 @@ noted about them on the Atlas the operator chooses for person pages.
 
 1. Identify the Atlas to read (the selected Atlas): the confirmed
    `<target-atlas-id>`, or — read-only — any known or bound Atlas (Enter
-   card, install config) or any other Atlas the operator names. Query needs
+   card, install config) or any other Atlas the operator names. Recall needs
    no write confirmation and no public-visibility acknowledgement:
    `atlas_target` may be `unknown` (as may `atlas_target_visibility`) and
    `push_remote` may be `none`; the run stays read-only. None known → ask
@@ -28,9 +28,9 @@ noted about them on the Atlas the operator chooses for person pages.
    again.
    - If the store is not reachable → explain the contract and report
      deferral `awaiting store provision`. Do not invent pages.
-   - Do **not** mount the Atlas overlay, compile, commit, or push: query
+   - Do **not** mount the Atlas overlay, compile, commit, or push: recall
      never mutates the store.
-3. Load EXTERNAL **`atlas`** path `recall` / query tooling as appropriate.
+3. Load EXTERNAL **`atlas`** path `recall`.
    Search by `person_id`, names, aliases, and `relates_to` edges.
 4. Identify person pages by `person_contract: v1`: both `type: person`
    pages and legacy v0.1.2 `type: document` pages count. Ignore
@@ -40,7 +40,7 @@ noted about them on the Atlas the operator chooses for person pages.
    - Primary name + aliases
    - Bio / history highlights
    - Typed relationship edges (kind + other person)
-   - Source pointers (Notes id, not title) when present
+   - Source pointers (notes id, not title) when present
 6. On ambiguous person matches, list candidates and **stop** — do not guess.
 
 ## Outputs

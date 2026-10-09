@@ -87,16 +87,16 @@ smokes:
       flat SKILL.md | grep -F 'This is advisory, never a block' >/dev/null
   - id: skill-mount-skipped-on-dry-run
     source: review-feedback-dry-run-mount
-    expect: the overlay mount runs only on a real write run (memory_sync on); query, previews, and dry runs skip it so no schema.d/ or templates/ mutation happens
+    expect: the overlay mount runs only on a real write run (memory_sync on); recall, previews, and dry runs skip it so no schema.d/ or templates/ mutation happens
     check: |
       flat() { tr -s '\n ' '  ' < "$1"; }
-      flat SKILL.md | grep -F '**Skip the mount** for query and for any preview or dry run (`memory_sync: off`): no `schema install`, no compile, no change to `schema.d/` or `templates/`' >/dev/null
-      flat SKILL.md | grep -F '**Skip this step** for query and for previews or dry runs (`memory_sync: off`)' >/dev/null
+      flat SKILL.md | grep -F '**Skip the mount** for recall and for any preview or dry run (`memory_sync: off`): no `schema install`, no compile, no change to `schema.d/` or `templates/`' >/dev/null
+      flat SKILL.md | grep -F '**Skip this step** for recall and for previews or dry runs (`memory_sync: off`)' >/dev/null
       flat SKILL.md | grep -F '### 3. Mount the Atlas overlay (confirmed target, write runs only)' >/dev/null
       for f in references/paths/remember.md references/paths/import-notes.md; do
         flat "$f" | grep -F 'do not** mount the Atlas overlay (no `schema install`, no change to `schema.d/` or `templates/`)' >/dev/null || { echo "missing dry-run mount skip: $f"; exit 1; }
       done
-      flat references/paths/query.md | grep -F 'Do **not** mount the Atlas overlay' >/dev/null
+      flat references/paths/recall.md | grep -F 'Do **not** mount the Atlas overlay' >/dev/null
   - id: skill-mount-after-path-gates
     source: review-feedback-mount-timing
     expect: Enter never mounts the overlay; the remember and import-notes path modules each invoke the mount exactly once, after the path module's gates and before the first write, so a rejected request never changes schema.d/ or templates/
@@ -132,7 +132,7 @@ smokes:
         'Reject secret-class content' 'Title-only → **stop**' '**Dry-run gate' \
         'awaiting store provision' '**do not auto-merge**'
       check_order references/paths/import-notes.md \
-        'whole library' 'Mac + Automation approval' 'require operator confirm (I4)' \
+        'whole library' 'chosen notes source' 'require operator confirm (I4)' \
         'Redact secret-class' '**Dry-run gate' 'awaiting store provision' \
         'Never auto-merge on name alone'
       for f in references/paths/remember.md references/paths/import-notes.md; do
@@ -145,7 +145,7 @@ smokes:
       flat() { tr -s '\n ' '  ' < "$1"; }
       flat references/person-page-schema.md | grep -F '**OKF type:** `person`' >/dev/null
       flat references/person-page-schema.md | grep -F 'Identify person pages by `person_contract: v1`' >/dev/null
-      flat references/paths/query.md | grep -F 'legacy v0.1.2 `type: document` pages count' >/dev/null
+      flat references/paths/recall.md | grep -F 'legacy v0.1.2 `type: document` pages count' >/dev/null
       flat references/paths/remember.md | grep -F 'New pages use `type: person`' >/dev/null
       ! rg -n -e 'do not invent overlay[s]' -e '\*\*no\*\* native `perso[n]` type' references/paths references/person-page-schema.md SKILL.md README.md contributions/
   - id: overlay-mirror-lockstep

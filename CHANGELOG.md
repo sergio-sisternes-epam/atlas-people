@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.4 — 2026-10-09
+
+Tool-neutral notes import, source pointers, and recall path naming. Existing
+behaviour and safety rules are unchanged.
+
+- Import-notes accepts any operator-chosen notes app or export
+  (e.g. Apple Notes, Obsidian, a Markdown export); no specific notes skill
+  or tool is required, and the `apple-notes` compose pin is dropped. Source
+  access is confirmed with the operator; the default cap is 25 notes per
+  list/search, with truncation reported.
+- Source pointers use `kind: notes` with optional `app:` plus `id`, optional
+  `folder_id`, and `captured_at`. Existing `kind: apple-notes` pointers stay
+  valid and are read as `kind: notes` with `app: apple-notes`.
+- Secret guidance is neutral: credentials live in the operator's password
+  manager or secret store (e.g. 1Password); protected values and secret
+  location details stay out of person pages.
+- Renamed the `query` path to `recall`; `query` remains a deprecated alias
+  routing to recall. Renamed `references/paths/query.md` to
+  `references/paths/recall.md`.
+- Updated scenario checks and added smokes for mandatory notes/vault tools
+  and the recall path plus deprecated alias.
+
 ## 0.1.3 — 2026-10-09
 
 Target-neutral storage for person pages, and an Atlas overlay that declares

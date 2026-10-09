@@ -32,15 +32,15 @@ smokes:
       flat SKILL.md | grep -F '`atlas_target: unknown` → **stop** before writing' >/dev/null
       flat README.md | grep -F 'per-target confirmation, not an allow-list' >/dev/null
       rg -n 'atlas_target: confirmed' SKILL.md README.md references/paths/remember.md references/paths/import-notes.md
-  - id: query-resolves-selected-atlas
-    source: review-feedback-query-resolve
-    expect: Enter resolves the selected Atlas (operator-named or known Atlas for query, confirmed target for writes); write confirmation is required only for remember, import-notes, and compile-push, and query stays read-only with atlas_target unknown
+  - id: recall-resolves-selected-atlas
+    source: review-feedback-recall-resolve
+    expect: Enter resolves the selected Atlas (operator-named or known Atlas for recall, confirmed target for writes); write confirmation is required only for remember, import-notes, and compile-push, and recall stays read-only with atlas_target unknown
     check: |
       flat() { tr -s '\n ' '  ' < "$1"; }
-      flat SKILL.md | grep -F '`mount` / `resolve` for the selected `<target-atlas-id>` (the confirmed target for remember, import-notes, and compile/push; the known or operator-named Atlas for query)' >/dev/null
+      flat SKILL.md | grep -F '`mount` / `resolve` for the selected `<target-atlas-id>` (the confirmed target for remember, import-notes, and compile/push; the known or operator-named Atlas for recall)' >/dev/null
       flat SKILL.md | grep -F 'required for remember / import-notes / compile-push only' >/dev/null
-      flat SKILL.md | grep -F 'Query with `atlas_target: unknown` → read-only' >/dev/null
-      flat references/paths/query.md | grep -F '`atlas_target` may be `unknown`' >/dev/null
+      flat SKILL.md | grep -F 'Recall with `atlas_target: unknown` → read-only' >/dev/null
+      flat references/paths/recall.md | grep -F '`atlas_target` may be `unknown`' >/dev/null
       ! flat SKILL.md | grep -F '`resolve` for the confirmed `<target-atlas-id>` and set' >/dev/null
   - id: accept-confirmed-work-atlas
     source: owner-design-target-neutral
@@ -72,7 +72,7 @@ smokes:
       rg -n 'person_id|Atlas-owned' SKILL.md references/person-page-schema.md
       rg -n 'CNContact|source pointers only|Never use CNContact' SKILL.md references/person-page-schema.md references/paths/remember.md
   - id: notes-id-not-title
-    source: apple-notes-mcp-duplicate-title-fix
+    source: notes-duplicate-title-fix
     expect: import procedure requires note id for source pointers; title-only targeting is a blocker
     check: |
       rg -n 'note id|Notes \*\*id\*\*|Title-only' SKILL.md references/paths/import-notes.md references/paths/remember.md
@@ -100,20 +100,50 @@ smokes:
       ! rg -n 'path:.*linkedin|import-linkedin' references/paths/
   - id: no-secret-location
     source: pin-secrets-standing
-    expect: skill says 1Password is the vault when needed and does not name item, vault, or id
+    expect: credentials are located only in the password manager or secret store, with no item, vault, or id names
     check: |
-      rg -n '1Password is the vault' SKILL.md README.md CHANGELOG.md
-      ! rg -n 'op:/[/]|vault_id\s*:|item_id\s*:|vault UUID' SKILL.md README.md CHANGELOG.md apm.yml references/paths/ references/person-page-schema.md
+      rg -n -i 'password manager or secret store' SKILL.md README.md references/paths/
+      ! rg -n 'op:/[/]|vault_id\s*:|item_id\s*:|vault UUID' SKILL.md README.md apm.yml references/paths/ references/person-page-schema.md
   - id: no-secret-class-in-atlas
     source: pin-secrets-standing
     expect: passwords and SSN-class values are forbidden in person pages and import excerpts
     check: |
       rg -n 'password|SSN-class|secret-class' SKILL.md references/person-page-schema.md references/paths/
   - id: skip-locked-notes
-    source: apple-notes-locked-e2e
+    source: notes-locked-e2e
     expect: locked notes are skipped with a count; bodies are not invented
     check: |
       rg -n 'locked|skip count|do not invent' references/paths/import-notes.md SKILL.md
+  - id: no-mandatory-notes-or-vault-tool
+    source: tool-neutral-notes-and-secrets
+    expect: no specific notes app, reader tool, or vault tool is mandatory; the operator-chosen notes source is readable and secret location wording is neutral
+    check: |
+      files=(SKILL.md README.md apm.yml references/paths references/person-page-schema.md contributions .apm/ scripts)
+      if rg -n -i 'EXTERNAL.{0,40}apple.?notes|apple.?notes.{0,40}EXTERNAL|apple-notes.*compose|compose.*apple-notes|\bop (read|item)\b|op:/[/]|Mac \+ Automation' "${files[@]}"; then exit 1; fi
+      if rg -n -i 'Apple Notes|1Password' "${files[@]}" | python3 -c 'import re, sys
+      mentions = re.compile(r"apple.?notes|1password", re.I)
+      examples = re.compile(r"e\.g\.", re.I)
+      bad = False
+      for line in sys.stdin:
+          text = line.rstrip("\n").split(":", 2)[-1]
+          for mention in mentions.finditer(text):
+              if not any(example.end() <= mention.start() and not re.search(r"[).;:!?]", text[example.end():mention.start()]) for example in examples.finditer(text)):
+                  print(line, end="")
+                  bad = True
+      sys.exit(0 if bad else 1)'; then echo "Apple Notes / 1Password named outside an e.g. example"; exit 1; fi
+      rg -n -i 'password manager or secret store' SKILL.md README.md references/paths/
+      rg -n -i 'any notes app or export|any notes app or.*export|notes app or export' SKILL.md README.md references/paths/import-notes.md
+  - id: recall-path-and-query-alias
+    source: recall-path-migration
+    expect: recall is the path module and deprecated query routes to the same recall module and rules
+    check: |
+      test -f references/paths/recall.md
+      test ! -e references/paths/query.md
+      rg -n -F '| recall | `references/paths/recall.md` |' SKILL.md
+      rg -n -F '| query | (deprecated alias) | Routes to recall; same module and rules |' SKILL.md
+      rg -n -F 'path: recall' references/paths/recall.md
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F 'Normalize a deprecated `path: query` (or a query request) to `recall` before the activation card is validated and emitted; the card then shows `path: recall`' >/dev/null
   - id: import-scope-required
     source: pin-bounded-import
     expect: import-notes refuses whole-library default without explicit folder scope

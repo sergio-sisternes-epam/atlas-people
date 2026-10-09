@@ -1,15 +1,16 @@
 # atlas-people
 
-People skill for Atlas. Query and remember people and typed relationships as
-person pages on **the Atlas the operator chooses and confirms**; run a
-supervised **one-shot Apple Notes** import that proves the person-page shape.
+People skill for Atlas. Recall and remember people and typed relationships
+as person pages on **the Atlas the operator chooses and confirms**; run a
+supervised **one-shot import from any notes app or export** (e.g. Apple Notes,
+Obsidian, a Markdown export) that proves the person-page shape.
 Neutral across personal and professional life.
 
 ## What it does
 
-1. **Query** people and relationships on the target Atlas.
+1. **Recall** people and relationships on the target Atlas.
 2. **Remember** person fields and typed relationship edges with evidence.
-3. **Import-notes** once from Apple Notes (EXTERNAL `apple-notes`): id-safe
+3. **Import-notes** once from the operator-chosen notes source: stable-id
    source pointers, hard-id match only, ambiguous merges → review queue.
 4. **Compile + push** via EXTERNAL `atlas` + `atlas-compile-commit-push` to
    the operator-confirmed push remote only.
@@ -40,7 +41,7 @@ that specific `atlas_id` (and its `push_remote`) for this run. It is a
 per-target confirmation, not an allow-list; an install-config value is a
 suggested default, not a confirmation. If the target changes, the skill asks
 again. No confirmation → `incomplete: atlas target not confirmed` (fail
-closed). Query needs no write confirmation: it resolves a known or
+closed). Recall needs no write confirmation: it resolves a known or
 operator-named Atlas and reads it with `atlas_target: unknown`, read-only.
 
 The skill never refuses a target on policy grounds: a work, project,
@@ -60,7 +61,7 @@ Continue?" Only an explicit yes sets
 `atlas_target_visibility: public-acknowledged`; `atlas_target: confirmed`
 never counts as this acknowledgement. Declining stops with no write
 (`incomplete: public target not acknowledged`); the target itself is not
-refused. Private targets with known visibility need no extra step, and query
+refused. Private targets with known visibility need no extra step, and recall
 needs no acknowledgement.
 
 Council decisions and principles belong to a separate
@@ -68,7 +69,7 @@ council/decision-memory skill, not to this one.
 
 ## Non-goals (v0)
 
-- Continuous Apple Notes sync
+- Continuous notes sync
 - LinkedIn (or other) ingest — later overlay on the same `person_id`s
 - Restricting or forcing the Atlas target on policy grounds (the operator
   decides; the skill asks and confirms)
@@ -76,8 +77,10 @@ council/decision-memory skill, not to this one.
 - Shipping live hostnames, remotes, checkout paths, or SSH identity paths in
   this package
 - Replacing Contacts.app / CNContact as a system of record
-- Naming 1Password item titles, vault names, or ids in skills or Atlas process
-  pages — say only that 1Password is the vault when credentials are needed
+- Password-manager item titles, vault names, or ids in skills or Atlas process
+  pages. Credentials live in the operator's password manager or secret store
+  (e.g. 1Password); when needed, say only that they are in the password
+  manager or secret store.
 
 ## Design lineage
 
@@ -91,15 +94,16 @@ live on **this repository's `atlas` branch**
 Releases are tagged `v<version>`. Install a pinned release with APM:
 
 ```bash
-apm install sergio-sisternes-epam/atlas-people#v0.1.3
+apm install sergio-sisternes-epam/atlas-people#v0.1.4
 ```
 
 Optionally record a suggested `atlas_id` and `push_remote` in the install
 config, not in this package; the skill offers it as an option and still asks
 the operator to confirm it before the first write.
 
-**Compose pins:** installed `atlas`, `atlas-compile-commit-push`, and
-`apple-notes` (for import-notes).
+**Compose pins:** installed `atlas` and `atlas-compile-commit-push`.
+No notes reader skill, CLI, or integration is required; use one only if the
+operator has it for the chosen source.
 
 ## Atlas overlay (type `person`)
 
@@ -108,7 +112,7 @@ declares one new type, `person`, so Atlas compile can check person-page
 frontmatter. It claims no folder, carries no extension slot, and redeclares
 no core type. `apm install` never mounts it: the skill asks the operator,
 then mounts it only on the confirmed target Atlas, and only on a real write
-run (remember or import-notes with `memory_sync: on`; never for query or a
+run (remember or import-notes with `memory_sync: on`; never for recall or a
 dry run). The path module mounts it once, after the path module's gates
 pass and immediately before the first write:
 
