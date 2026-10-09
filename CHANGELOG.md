@@ -44,13 +44,26 @@ the `person` type.
   mounts the overlay; after target confirmation and resolve, the skill asks
   the operator and mounts it only on the confirmed target with
   `atlas.py schema install <pkg-root>/contributions/atlas-people --root
-  <atlas-root>` and compile. Declining is advisory, not a block. Upgrade
-  re-runs `schema install` from the new package root (`--force` when
-  required keys change); removal is `schema uninstall atlas-people` and
-  compile. The package ref is recorded on the exit receipt.
+  <atlas-root>` and compile. The mount runs only on a real write run
+  (remember or import-notes with `memory_sync: on`); query, previews, and
+  dry runs skip it, so a dry run never changes `schema.d/` or
+  `templates/`. Declining is advisory, not a block. Upgrade re-runs the
+  mount from the new package root as `schema uninstall atlas-people`, then
+  `schema install <new-pkg-root>/contributions/atlas-people`, then
+  compile: a plain re-install (with or without `--force`) neither refreshes
+  `templates/person.md` nor keeps it on the receipt, so a later uninstall
+  would leave it behind. Removal is `schema uninstall atlas-people` and
+  compile; a `templates/person.md` left over from an earlier plain
+  re-install is an unused template the operator may delete. The package ref
+  is recorded on the exit receipt.
+- Query resolves the selected Atlas (a known or operator-named Atlas) and
+  runs read-only with `atlas_target: unknown`; write confirmation is
+  required only for remember, import-notes, and compile/push.
 - Tested with Atlas 0.13.0 and 0.13.1 on SCHEMA 1.0 and 2.0 stores. New
   `scripts/overlay-smoke.sh` (static contract check plus install, compile,
-  missing-key, reinstall, and uninstall runs) and scenario file
+  missing-key, upgrade by uninstall and install, and uninstall runs that
+  check `templates/person.md` is removed; a separate throwaway store pins
+  the Atlas plain re-install behaviour) and scenario file
   `people-overlay-v1.yaml`.
 - CI installs `jsonschema==4.25.1` (needed by the Atlas CLI for SCHEMA 2.0
   stores; the pin matches Atlas `scripts/requirements-ci.txt`), checks out

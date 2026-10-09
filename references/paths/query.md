@@ -14,14 +14,21 @@ noted about them on the Atlas the operator chooses for person pages.
 
 ## Procedure
 
-1. Identify the Atlas to read: the confirmed `<target-atlas-id>`, or —
-   read-only — any known or bound Atlas (Enter card, install config) or any
-   other Atlas the operator names. Query needs no write confirmation. None
-   known → ask the operator which Atlas holds the person pages; no answer →
-   explain the contract only and **stop** before any store access.
-2. Load EXTERNAL **`atlas`** path `mount` (or `resolve`) for that store.
+1. Identify the Atlas to read (the selected Atlas): the confirmed
+   `<target-atlas-id>`, or — read-only — any known or bound Atlas (Enter
+   card, install config) or any other Atlas the operator names. Query needs
+   no write confirmation: `atlas_target` may be `unknown` and
+   `push_remote` may be `none`; the run stays read-only. None known → ask
+   the operator which Atlas holds the person pages; no answer → explain the
+   contract only and **stop** before any store access.
+2. Reuse the `atlas_root` that **0. Enter** resolved for the selected Atlas
+   (EXTERNAL **`atlas`** path `mount` / `resolve`). Resolve returning a
+   different `atlas_id` → **stop** and ask the operator to name the Atlas
+   again.
    - If the store is not reachable → explain the contract and report
      deferral `awaiting store provision`. Do not invent pages.
+   - Do **not** mount the Atlas overlay, compile, commit, or push: query
+     never mutates the store.
 3. Load EXTERNAL **`atlas`** path `recall` / query tooling as appropriate.
    Search by `person_id`, names, aliases, and `relates_to` edges.
 4. Identify person pages by `person_contract: v1`: both `type: person`

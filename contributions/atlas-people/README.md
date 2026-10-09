@@ -51,7 +51,9 @@ pages use `type: person`.
 
 `apm install` only installs the skill package. It never mounts this overlay
 into any Atlas. Mount it explicitly, and only on the Atlas the operator named
-and confirmed as the target for person pages:
+and confirmed as the target for person pages, on a real write run
+(remember or import-notes with `memory_sync: on`). Query and dry runs never
+mount it, because mounting changes `schema.d/` and `templates/`:
 
 ```bash
 apm install sergio-sisternes-epam/atlas-people#v0.1.3
@@ -66,16 +68,30 @@ python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>
 ## Upgrade
 
 After `apm install sergio-sisternes-epam/atlas-people#vNEW` or `apm update`,
-the store keeps the old overlay until `schema install` runs again from the
-new package root. Add `--force` when the overlay's required frontmatter keys
-changed (install exits 2 otherwise). Then compile.
+the store keeps the old overlay until the mount is re-run from the new
+package root (`<new-pkg-root>`). Ask the operator, then on the confirmed
+target uninstall, install, and compile:
 
 ```bash
+python3 <atlas-skill>/scripts/atlas.py schema uninstall atlas-people --root <atlas-root>
 python3 <atlas-skill>/scripts/atlas.py schema install \
-  <pkg-root>/contributions/atlas-people \
-  --root <atlas-root> [--force]
+  <new-pkg-root>/contributions/atlas-people \
+  --root <atlas-root>
 python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>
 ```
+
+Why not a plain re-install: re-running `schema install` (with or without
+`--force`) on a store that already has `templates/person.md` does not
+overwrite that template and rewrites the receipt without it, so the
+template stays at the old version and a later `schema uninstall` leaves it
+behind. Uninstalling first removes the old overlay and template; the fresh
+install writes the new template and lists it on the receipt again, so
+`--force` is not needed. Uninstall never deletes person pages. If
+`templates/person.md` is still present after the uninstall (left by an
+earlier plain re-install), the overlay no longer owns it; with the
+operator's agreement delete it before the install so the new template is
+written and recorded. Verified with Atlas 0.13.0 and 0.13.1
+(`scripts/overlay-smoke.sh`).
 
 ## Remove
 
@@ -89,3 +105,8 @@ python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>
 
 Uninstall does not delete person pages. Pages with `type: person` remain
 legal OKF; Atlas simply stops checking their frontmatter.
+
+If a store was upgraded with a plain re-install under an older version of
+these instructions, `templates/person.md` may remain after
+`schema uninstall`. It is an unused template, not part of the contract file
+or `schema.d/`; the operator may delete it.

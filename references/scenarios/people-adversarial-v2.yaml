@@ -32,6 +32,16 @@ smokes:
       flat SKILL.md | grep -F '`atlas_target: unknown` → **stop** before writing' >/dev/null
       flat README.md | grep -F 'per-target confirmation, not an allow-list' >/dev/null
       rg -n 'atlas_target: confirmed' SKILL.md README.md references/paths/remember.md references/paths/import-notes.md
+  - id: query-resolves-selected-atlas
+    source: review-feedback-query-resolve
+    expect: Enter resolves the selected Atlas (operator-named or known Atlas for query, confirmed target for writes); write confirmation is required only for remember, import-notes, and compile-push, and query stays read-only with atlas_target unknown
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F '`mount` / `resolve` for the selected `<target-atlas-id>` (the confirmed target for remember, import-notes, and compile/push; the known or operator-named Atlas for query)' >/dev/null
+      flat SKILL.md | grep -F 'required for remember / import-notes / compile-push only' >/dev/null
+      flat SKILL.md | grep -F 'Query with `atlas_target: unknown` → read-only' >/dev/null
+      flat references/paths/query.md | grep -F '`atlas_target` may be `unknown`' >/dev/null
+      ! flat SKILL.md | grep -F '`resolve` for the confirmed `<target-atlas-id>` and set' >/dev/null
   - id: accept-confirmed-work-atlas
     source: owner-design-target-neutral
     expect: a work, project, personal, shared, or another agent's Atlas is accepted once the operator confirms it

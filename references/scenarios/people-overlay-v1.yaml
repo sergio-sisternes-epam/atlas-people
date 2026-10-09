@@ -51,21 +51,31 @@ smokes:
       PY
   - id: overlay-live-smoke
     source: atlas-schema-test-both-stores
-    expect: with ATLAS_CLI set, the overlay installs, compiles, flags a missing person_id, reinstalls, and uninstalls on SCHEMA 1.0 and 2.0 stores; otherwise a deferral is recorded
+    expect: with ATLAS_CLI set, the overlay installs, compiles, flags a missing person_id, upgrades by uninstall and install (receipt lists templates/person.md again), and uninstalls (overlay and template gone, person pages kept) on SCHEMA 1.0 and 2.0 stores, and pins the Atlas plain re-install receipt behaviour; otherwise a deferral is recorded
     check: |
       bash scripts/overlay-smoke.sh
   - id: skill-mount-overlay-commands
     source: atlas-schema-path-3a
-    expect: SKILL.md documents schema install from contributions/atlas-people, schema uninstall atlas-people, and a re-run after upgrade
+    expect: SKILL.md documents schema install from contributions/atlas-people, schema uninstall atlas-people, and an upgrade that re-runs the mount as uninstall then install from the new package root (no plain re-install)
     check: |
       flat() { tr -s '\n ' '  ' < "$1"; }
       flat SKILL.md | grep -F 'schema install <pkg-root>/contributions/atlas-people --root <atlas-root>' >/dev/null
       flat SKILL.md | grep -F 'schema uninstall atlas-people --root <atlas-root>' >/dev/null
       flat SKILL.md | grep -F 'apm_modules/sergio-sisternes-epam/atlas-people/' >/dev/null
       flat SKILL.md | grep -F 'apm.lock.yaml' >/dev/null
-      flat SKILL.md | grep -F 're-run from the new package root' >/dev/null
-      flat SKILL.md | grep -F 'add `--force` when the overlay' >/dev/null
       flat SKILL.md | grep -F 'Overlay mount / upgrade / remove | **EXTERNAL** (`atlas` path `schema`)' >/dev/null
+      for f in SKILL.md README.md contributions/atlas-people/README.md; do
+        flat "$f" | grep -F 'schema install <new-pkg-root>/contributions/atlas-people' >/dev/null \
+          || flat "$f" | grep -F 'schema install \ <new-pkg-root>/contributions/atlas-people' >/dev/null \
+          || { echo "missing upgrade install from new package root: $f"; exit 1; }
+        flat "$f" | grep -F 'templates/person.md' >/dev/null || { echo "missing template note: $f"; exit 1; }
+      done
+      flat SKILL.md | grep -F 'uninstall, then install, then compile' >/dev/null
+      flat SKILL.md | grep -F 'neither refreshes that template nor keeps it on the receipt' >/dev/null
+      flat SKILL.md | grep -F 'it is an unused template' >/dev/null || flat SKILL.md | grep -F 'It is an unused template' >/dev/null
+      flat CHANGELOG.md | grep -F 'then `schema install <new-pkg-root>/contributions/atlas-people`' >/dev/null
+      ! flat SKILL.md | grep -F 're-run from the new package root (with `--force`' >/dev/null
+      ! flat SKILL.md | grep -F 'add `--force` when the overlay' >/dev/null
   - id: skill-mount-confirmed-target-only
     source: owner-design-target-neutral
     expect: SKILL.md mounts the overlay only on the operator-confirmed target, asks first, and treats a declined mount as advisory
@@ -75,6 +85,19 @@ smokes:
       flat SKILL.md | grep -F 'Mount only on the Atlas the operator confirmed as the target for this run' >/dev/null
       flat SKILL.md | grep -F 'Never mount on an Atlas the operator did not name and confirm' >/dev/null
       flat SKILL.md | grep -F 'This is advisory, never a block' >/dev/null
+  - id: skill-mount-skipped-on-dry-run
+    source: review-feedback-dry-run-mount
+    expect: the overlay mount runs only on a real write run (memory_sync on); query, previews, and dry runs skip it so no schema.d/ or templates/ mutation happens
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F 'For remember and import-notes with `memory_sync: on` (a real write run), run **2. Mount the Atlas overlay**' >/dev/null
+      flat SKILL.md | grep -F '**Skip the mount** for query and for any preview or dry run (`memory_sync: off`): no `schema install`, no compile, no change to `schema.d/` or `templates/`' >/dev/null
+      flat SKILL.md | grep -F '**Skip this step** for query and for previews or dry runs (`memory_sync: off`)' >/dev/null
+      flat SKILL.md | grep -F '### 2. Mount the Atlas overlay (confirmed target, write runs only)' >/dev/null
+      for f in references/paths/remember.md references/paths/import-notes.md; do
+        flat "$f" | grep -F 'do not** mount the Atlas overlay (no `schema install`, no change to `schema.d/` or `templates/`)' >/dev/null || { echo "missing dry-run mount skip: $f"; exit 1; }
+      done
+      flat references/paths/query.md | grep -F 'Do **not** mount the Atlas overlay' >/dev/null
   - id: person-type-and-legacy
     source: owner-design-person-type
     expect: new person pages use type person; v0.1.2 type document pages stay valid and are recognised by person_contract v1

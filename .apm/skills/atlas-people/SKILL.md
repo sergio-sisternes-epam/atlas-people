@@ -63,16 +63,20 @@ live):
    is shared, a work or project Atlas, or a public repository branch,
    mention that person pages will be visible to that Atlas's readers and let
    the operator decide. This advice never blocks a write.
-5. **Fail closed on missing information.** No named or confirmed target →
+5. **Fail closed on missing information.** No confirmed target →
    `atlas_target: unknown` → **stop** before writing:
-   `incomplete: atlas target not confirmed` (query can still run
-   read-only). If `atlas resolve` of the confirmed target fails, or resolves
-   to something other than the confirmed `atlas_id` → **stop**. Never guess,
-   never fall back to a remembered value, never copy a value from another
-   skill's docs.
-6. `atlas_root` is filled from EXTERNAL `atlas` `resolve` of the confirmed
-   `atlas_id` **before** the Enter card is emitted — do not require the
-   operator to pre-fill `atlas_root`.
+   `incomplete: atlas target not confirmed`. Query needs no write
+   confirmation: it reads the selected Atlas (a known or operator-named
+   Atlas) with `atlas_target: unknown` and stays read-only; no Atlas
+   selected at all → query explains the contract only. If `atlas resolve`
+   of the selected Atlas fails, or resolves to something other than the
+   selected `atlas_id` → **stop**. Never guess, never fall back to a
+   remembered value, never copy a value from another skill's docs.
+6. `atlas_root` is filled from EXTERNAL `atlas` `resolve` of the selected
+   `atlas_id` (the confirmed target for remember, import-notes, and
+   compile/push; the known or operator-named Atlas for query) **before**
+   the Enter card is emitted — do not require the operator to pre-fill
+   `atlas_root`.
 7. Only placeholders appear in this package. Do not paste live hostnames,
    remotes, absolute checkout paths, SSH identity paths, or personal Atlas
    slugs into skill text, scenarios, CHANGELOG, or commit messages.
@@ -113,9 +117,9 @@ live):
 
 ## Activation card
 
-`activation_card: on`. Before any Atlas write, compile/push, or Notes import,
-emit this Enter card with **every field filled**. Missing required field →
-**stop**.
+`activation_card: on`. Before any Atlas read or write, compile/push, or Notes
+import, emit this Enter card with **every field filled**. Missing required
+field → **stop**.
 
 ```text
 skill: atlas-people
@@ -123,10 +127,10 @@ skill_path: <resolved install / package root>
 mode: run
 path: query | remember | import-notes
 intent: <one line>
-atlas_id: <target-atlas-id>          # operator-confirmed target
-atlas_root: <atlas-root>             # filled by atlas resolve BEFORE emit
-push_remote: <push-remote>           # confirmed with the target
-atlas_target: confirmed | unknown    # confirmed = operator confirmed this atlas_id for this run
+atlas_id: <target-atlas-id>          # selected Atlas: confirmed target (writes) or known / operator-named Atlas (query)
+atlas_root: <atlas-root>             # filled by atlas resolve of atlas_id BEFORE emit
+push_remote: <push-remote> | none    # confirmed with the target; none for read-only query
+atlas_target: confirmed | unknown    # confirmed = operator confirmed this atlas_id for this run; required for remember / import-notes / compile-push only
 memory_sync: on | off
 compile_push: on | off
 import_scope: <folder id(s) or none>
@@ -136,7 +140,8 @@ invocation: actor-session
 ### Defaults when omitted (still must appear filled on the emitted card)
 
 - Omitted `memory_sync` / `compile_push` → both **`on`** for remember and
-  import-notes. `off` only with an explicit operator dry-run override.
+  import-notes. `off` only with an explicit operator dry-run override. For
+  query both are **`off`** (read-only).
 - Omitted `import_scope` → **`none`**. import-notes with `none` → **stop**
   (folder scope required).
 - Omitted `path` → infer from intent; ambiguous → **stop**.
@@ -146,7 +151,8 @@ invocation: actor-session
   allowing any other. An install-config or Enter-card value is a suggested
   default, not an implicit confirmation. No explicit confirmation →
   `atlas_target: unknown` → **stop** for any write. Query may still run
-  read-only.
+  read-only against a known or operator-named Atlas with
+  `atlas_target: unknown` and `push_remote: none`.
 
 ### Fail closed
 
@@ -155,8 +161,12 @@ invocation: actor-session
   → **stop** (`incomplete: atlas target not confirmed`).
 - Target changed since the operator confirmed it → ask and confirm again
   before the next write; no fresh confirmation → **stop**.
-- `atlas resolve` of the confirmed target fails, or resolves to something
-  other than the confirmed `atlas_id` → **stop**.
+- Query with `atlas_target: unknown` → read-only: no write, no overlay
+  mount, no compile/push. A query that would need a write → switch to
+  path `remember`, which asks for and confirms the target first.
+- `atlas resolve` of the selected Atlas (the confirmed target for writes;
+  the known or operator-named Atlas for query) fails, or resolves to
+  something other than the selected `atlas_id` → **stop**.
 - Never stop because of *which* Atlas the operator chose: a work, project,
   personal, shared, or another agent's Atlas is accepted once confirmed.
   Privacy notes about visibility are advice only.
@@ -206,35 +216,45 @@ it — never a cwd-relative reinvented copy.
    work or project Atlas, or a public repository branch, add a non-blocking
    note that person pages will be visible to its readers. No confirmation →
    `atlas_target: unknown` → **stop** before writing
-   (`incomplete: atlas target not confirmed`). For query, a known or
-   operator-named Atlas is enough to read.
+   (`incomplete: atlas target not confirmed`). For query, no write
+   confirmation is needed: select a known or operator-named Atlas to read,
+   leave `atlas_target: unknown` (or `confirmed` if the operator already
+   confirmed it this run), set `push_remote: none` when none is confirmed,
+   and stay read-only. No Atlas selected → query explains the contract
+   only and **stop** before any store access.
 3. **Resolve `atlas_root` before the card:** load EXTERNAL **`atlas`** path
-   `mount` / `resolve` for the confirmed `<target-atlas-id>` and set
-   `atlas_root` only from that result. Do **not** require `atlas_root` to be
-   pre-filled by the operator. If mount / `git ls-remote` fails because the
-   empty store is not yet provisioned → **stop** with deferral reason
+   `mount` / `resolve` for the selected `<target-atlas-id>` (the confirmed
+   target for remember, import-notes, and compile/push; the known or
+   operator-named Atlas for query) and set `atlas_root` only from that
+   result. Do **not** require `atlas_root` to be pre-filled by the
+   operator. If mount / `git ls-remote` fails because the empty store is
+   not yet provisioned → **stop** with deferral reason
    `awaiting store provision` (query may still explain the contract;
    remember/import that need a live write must defer). Resolve returns a
-   different `atlas_id` than the operator confirmed → **stop** and ask the
-   operator to confirm again.
+   different `atlas_id` than the one selected → **stop** and ask the
+   operator to confirm (writes) or name (query) the Atlas again.
 4. Emit the activation card with **every field filled**, including the
    resolved `atlas_root`. Missing resolve → incomplete card → **stop**.
-5. For remember and import-notes, run **2. Mount the Atlas overlay** on the
-   confirmed target before the first write.
+5. For remember and import-notes with `memory_sync: on` (a real write run),
+   run **2. Mount the Atlas overlay** on the confirmed target before the
+   first write. **Skip the mount** for query and for any preview or dry run
+   (`memory_sync: off`): no `schema install`, no compile, no change to
+   `schema.d/` or `templates/`.
 6. Load the matching LOCAL path module under `references/paths/` and follow it.
 
 ### 1. Mount (all paths that need the store)
 
-1. Mount/resolve already ran in **0. Enter** step 3. Reuse the resolved
-   `atlas_root`; do not re-guess a checkout path.
+1. Mount/resolve of the selected Atlas already ran in **0. Enter** step 3.
+   Reuse the resolved `atlas_root`; do not re-guess a checkout path.
 2. If a later path step rediscovers that the live store is unreachable →
    **stop** with deferral `awaiting store provision`. Do not invent a fake
    tip.
-3. Mounted store differs from the confirmed `atlas_id`, or the operator
+3. Mounted store differs from the selected `atlas_id`, or the operator
    names a different target mid-run → **stop** writes until the operator
-   confirms the target again.
+   confirms the target again (query: stop reading until the operator names
+   the Atlas again).
 
-### 2. Mount the Atlas overlay (confirmed target only)
+### 2. Mount the Atlas overlay (confirmed target, write runs only)
 
 This package ships an Atlas overlay at `contributions/atlas-people/` that
 declares the type `person` (see `contributions/atlas-people/README.md`).
@@ -242,6 +262,12 @@ declares the type `person` (see `contributions/atlas-people/README.md`).
 into any Atlas. Mounting is a separate, explicit step through EXTERNAL
 **`atlas`** path `schema`, run after target confirmation and resolve
 (**0. Enter**) and before the first write.
+
+Mount only on a real write run: path remember or import-notes with
+`memory_sync: on`. **Skip this step** for query and for previews or dry
+runs (`memory_sync: off`): mounting runs `schema install` and compile,
+which change `schema.d/` and `templates/`, and a dry run promises no store
+mutation. Record `overlay: skipped` on the receipt.
 
 1. **Locate the package root.** After
    `apm install sergio-sisternes-epam/atlas-people#v0.1.3`, the package
@@ -253,7 +279,10 @@ into any Atlas. Mounting is a separate, explicit step through EXTERNAL
    confirmed as the target for this run (`<atlas-root>` from
    `atlas resolve`). Never mount on an Atlas the operator did not name and
    confirm. If `<atlas-root>/schema.d/atlas-people.json` already matches the
-   package overlay, the overlay is current; skip to step 5.
+   package overlay and `schema.d/atlas-people.receipt.json` lists
+   `templates/person.md`, the overlay is current; skip to step 5. If it
+   differs (an older package version), run **Upgrade** below instead of a
+   plain install.
 3. **Ask before mounting.** Mounting changes that Atlas's contract, so ask
    the operator first (same ask-then-confirm flow as writes). If the
    operator declines, continue: the skill still works, because an unknown
@@ -270,15 +299,32 @@ into any Atlas. Mounting is a separate, explicit step through EXTERNAL
    editing `schema.d/` by hand.
 5. **Record the package ref** (tag or commit from `apm.lock.yaml`) on the
    exit receipt, for example
-   `overlay: mounted | current | declined` and
+   `overlay: mounted | current | upgraded | declined | skipped` and
    `source: sergio-sisternes-epam/atlas-people#v0.1.3`.
 
 **Upgrade.** After `apm install sergio-sisternes-epam/atlas-people#vNEW` or
-`apm update`, the target keeps the old overlay until `schema install` is
-re-run from the new package root. Re-run after every upgrade, with the
-operator's agreement, on each Atlas that holds the overlay; add `--force`
-when the overlay's required frontmatter keys changed (install exits 2
-otherwise). Then compile.
+`apm update`, the target keeps the old overlay until the mount is re-run
+from the new package root (`<new-pkg-root>`). Re-run it after every
+upgrade, on the confirmed target only and after asking the operator (same
+flow as step 3), on each Atlas that holds the overlay: uninstall, then
+install, then compile.
+
+```bash
+python3 <atlas-skill>/scripts/atlas.py schema uninstall atlas-people --root <atlas-root>
+python3 <atlas-skill>/scripts/atlas.py schema install <new-pkg-root>/contributions/atlas-people --root <atlas-root>
+python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>
+```
+
+Why not a plain re-install: re-running `schema install` (with or without
+`--force`) on a store that already has `templates/person.md` neither
+refreshes that template nor keeps it on the receipt, so a later
+`schema uninstall` would leave it behind. Uninstalling first removes the
+old template and overlay; the fresh install writes the new template and
+lists it on the receipt again, so `--force` is not needed. Uninstall never
+deletes person pages. If `templates/person.md` is still present after the
+uninstall (left by an earlier plain re-install), it is no longer owned by
+the overlay; with the operator's agreement delete it before the install
+so the new template is written and recorded.
 
 **Remove.** `apm uninstall` leaves `schema.d/atlas-people.json` in every
 store. To remove the overlay from a confirmed Atlas:
@@ -288,7 +334,11 @@ python3 <atlas-skill>/scripts/atlas.py schema uninstall atlas-people --root <atl
 python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>
 ```
 
-Uninstall does not delete person pages; `type: person` stays legal OKF.
+Uninstall does not delete person pages; `type: person` stays legal OKF. If
+the store was upgraded with a plain re-install under an older version of
+these instructions, `templates/person.md` may remain after
+`schema uninstall`. It is an unused template, not part of the contract
+file or `schema.d/`; the operator may delete it.
 
 **Page type.** New person pages use `type: person`. Legacy v0.1.2 pages
 (`type: document` + `person_contract: v1`) stay valid; remember sets
@@ -323,12 +373,12 @@ deferral and do not claim a tip.
 
 ## Exit checklist
 
-- [ ] Activation card emitted (every field filled; `atlas_target: confirmed` for writes)
+- [ ] Activation card emitted (every field filled; `atlas_target: confirmed` for writes; may stay `unknown` for read-only query)
 - [ ] Operator asked which Atlas the person pages should be stored in (known or bound Atlases offered; any other allowed)
 - [ ] Target explicitly confirmed by the operator before the first write; re-confirmed if it changed
 - [ ] No target refused on policy grounds; privacy note given as advice only when the target is shared, work/project, or public
-- [ ] Atlas overlay: operator asked before mounting on the confirmed target only (`schema install <pkg-root>/contributions/atlas-people`, then compile green), or already current, or declined (advisory); package ref recorded on the exit receipt
-- [ ] After a package upgrade, `schema install` re-run from the new package root (with `--force` if required keys changed) on each Atlas that holds the overlay
+- [ ] Atlas overlay (write runs with `memory_sync: on` only): operator asked before mounting on the confirmed target only (`schema install <pkg-root>/contributions/atlas-people`, then compile green), or already current, or declined (advisory); skipped for query and dry runs; package ref recorded on the exit receipt
+- [ ] After a package upgrade, the mount re-run from the new package root (`schema uninstall atlas-people`, then `schema install <new-pkg-root>/contributions/atlas-people`, then compile) on each Atlas that holds the overlay, after asking the operator
 - [ ] New person pages use `type: person`; legacy `type: document` pages retyped only where the overlay is mounted
 - [ ] Path module followed; person contract observed
 - [ ] No name-only merge
@@ -376,5 +426,5 @@ placeholders only.
 
 The install does not touch any Atlas. The package's Atlas overlay
 (`contributions/atlas-people/`, type `person`) is mounted separately, only
-on the confirmed target and with the operator's agreement: see
-**2. Mount the Atlas overlay** above.
+on the confirmed target, on a write run, and with the operator's agreement:
+see **2. Mount the Atlas overlay** above.

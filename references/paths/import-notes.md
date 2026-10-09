@@ -58,9 +58,13 @@ Reload this checklist before list, before read, and before Atlas writes.
 8. **Dry-run gate (`memory_sync: off`):** after redaction, return a
    read-only preview (candidates, proposed merges, skips, review-queue
    candidates). **Do not** write person pages, review-queue entries, or
-   other store mutations; **do not** compile, commit, or push. Emit the
-   import receipt with `memory_sync: off` and stop.
-9. Match against existing people pages (only when `memory_sync: on`):
+   other store mutations; **do not** mount the Atlas overlay (no
+   `schema install`, no change to `schema.d/` or `templates/`); **do not**
+   compile, commit, or push. Emit the import receipt with
+   `memory_sync: off` and `overlay: skipped`, and stop.
+9. Only when `memory_sync: on`: before the first store write, run
+   SKILL.md **2. Mount the Atlas overlay** on the confirmed target, asking
+   the operator first. Then match against existing people pages:
    - Hard identifiers only for auto-merge.
    - Never auto-merge on name alone; single-token names stay unmerged.
    - Ambiguous pairs → review queue (human checkpoint). Do not guess.

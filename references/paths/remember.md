@@ -29,11 +29,15 @@ relationship edge on the Atlas the operator chooses for person pages.
    identity resolution or any store mutation, emit a read-only preview of
    the would-be person page / edge / review-queue entry. **Do not** resolve
    identity in a way that writes, **do not** update pages or edges, **do
-   not** open review-queue entries, and **do not** invoke Atlas remember /
-   compile / commit / push. Stop with receipt `memory_sync: off`.
+   not** open review-queue entries, **do not** mount the Atlas overlay
+   (no `schema install`, no change to `schema.d/` or `templates/`), and
+   **do not** invoke Atlas remember / compile / commit / push. Stop with
+   receipt `memory_sync: off` and `overlay: skipped`.
 4. Load EXTERNAL **`atlas`** path `mount`. If the live store is missing →
    **stop** with deferral `awaiting store provision`. Do not invent a
    tip. Resolved store differs from the confirmed `atlas_id` → **stop**.
+   Only now (`memory_sync: on`) run SKILL.md **2. Mount the Atlas overlay**
+   on the confirmed target, asking the operator first.
 5. Resolve identity (only when `memory_sync: on`):
    - Existing `person_id` → update that page.
    - Hard id match (email/phone/profile slug) to exactly one page → update.

@@ -34,7 +34,8 @@ that specific `atlas_id` (and its `push_remote`) for this run. It is a
 per-target confirmation, not an allow-list; an install-config value is a
 suggested default, not a confirmation. If the target changes, the skill asks
 again. No confirmation → `incomplete: atlas target not confirmed` (fail
-closed); query can still run read-only.
+closed). Query needs no write confirmation: it resolves a known or
+operator-named Atlas and reads it with `atlas_target: unknown`, read-only.
 
 The skill never refuses a target on policy grounds: a work, project,
 personal, shared, or another agent's Atlas is accepted once the operator
@@ -86,7 +87,9 @@ The package ships an Atlas overlay in `contributions/atlas-people/` that
 declares one new type, `person`, so Atlas compile can check person-page
 frontmatter. It claims no folder, carries no extension slot, and redeclares
 no core type. `apm install` never mounts it: the skill asks the operator,
-then mounts it only on the confirmed target Atlas:
+then mounts it only on the confirmed target Atlas, and only on a real write
+run (remember or import-notes with `memory_sync: on`; never for query or a
+dry run):
 
 ```bash
 python3 <atlas-skill>/scripts/atlas.py schema install \
@@ -95,11 +98,19 @@ python3 <atlas-skill>/scripts/atlas.py schema install \
 python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>
 ```
 
-After an upgrade, re-run `schema install` from the new package root
-(`--force` when the overlay's required keys changed). Remove it with
-`schema uninstall atlas-people --root <atlas-root>`, then compile. Declining
-the mount is fine: the skill still works without Atlas-side checks. New
-person pages use `type: person`; v0.1.2 `type: document` pages stay valid.
+After `apm install sergio-sisternes-epam/atlas-people#vNEW` or `apm update`,
+re-run the mount on the confirmed target, after asking the operator:
+`schema uninstall atlas-people --root <atlas-root>`, then
+`schema install <new-pkg-root>/contributions/atlas-people --root <atlas-root>`,
+then compile. A plain re-install (with or without `--force`) neither
+refreshes `templates/person.md` nor keeps it on the receipt, so a later
+uninstall would leave it behind. Uninstall never deletes person pages.
+Remove the overlay with `schema uninstall atlas-people --root <atlas-root>`,
+then compile; if a store was upgraded with a plain re-install under older
+instructions, a leftover `templates/person.md` is an unused template the
+operator may delete. Declining the mount is fine: the skill still works
+without Atlas-side checks. New person pages use `type: person`; v0.1.2
+`type: document` pages stay valid.
 Tested with Atlas 0.13.0 and 0.13.1 on SCHEMA 1.0 and 2.0 stores. Details,
 including which keys Atlas enforces and which the skill enforces:
 `contributions/atlas-people/README.md`.

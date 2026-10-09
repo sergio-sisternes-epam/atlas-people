@@ -15,7 +15,14 @@
 #    and each store version (1.0, 2.0) in a throwaway store: init, compile,
 #    schema install, compile, sample person page (plus a v0.1.2-shaped
 #    `type: document` person page) compiles clean, missing
-#    person_id is reported by page_contract, reinstall, uninstall, compile.
+#    person_id is reported by page_contract, documented upgrade (schema
+#    uninstall, then schema install) puts templates/person.md back on the
+#    receipt, final uninstall removes both schema.d/atlas-people.json and
+#    templates/person.md and keeps person pages, compile. A separate
+#    throwaway store pins the Atlas plain re-install behaviour: after
+#    `schema install --force` over an installed overlay the receipt no longer
+#    lists templates/person.md (if Atlas changes this, the smoke fails so the
+#    upgrade docs get revisited).
 #
 # Prints `deferred: ATLAS_CLI unset` and exits 0 when no CLI is given.
 set -euo pipefail
@@ -160,6 +167,17 @@ MD
   printf -- '- [Bea Legacy](bea-legacy.md)\n' >> "$store/people/index.md"
 }
 
+# receipt_lists <store> <path>: exit 0 when the atlas-people receipt lists <path>.
+receipt_lists() {
+  "$py" - "$1/schema.d/atlas-people.receipt.json" "$2" <<'PY'
+import json
+import sys
+
+r = json.load(open(sys.argv[1], encoding="utf-8"))
+sys.exit(0 if sys.argv[2] in r.get("written", []) else 1)
+PY
+}
+
 # run <label> <expected-exit> <cmd...>; output lands in $out.
 out=""
 run() {
@@ -218,20 +236,41 @@ PY
     cp "$tmp/page.bak" "$page"
     run "$label compile (restored)" 0 "$py" "$cli" compile --root "$store"
 
-    rc=0
-    out="$("$py" "$cli" schema install "$contrib" --root "$store" 2>&1)" || rc=$?
-    if [ "$rc" -eq 2 ]; then
-      run "$label schema install --force" 0 "$py" "$cli" schema install "$contrib" --root "$store" --force
-    elif [ "$rc" -ne 0 ]; then
-      printf '%s\n' "$out" >&2
-      fail "$label: reinstall exit $rc"
-    fi
-    [ -f "$store/schema.d/atlas-people.json" ] || fail "$label: overlay missing after reinstall"
+    # Documented upgrade: uninstall, then install from the (new) package root.
+    run "$label upgrade: schema uninstall" 0 "$py" "$cli" schema uninstall atlas-people --root "$store"
+    [ ! -e "$store/templates/person.md" ] || fail "$label: upgrade uninstall left templates/person.md"
+    [ -f "$page" ] || fail "$label: upgrade uninstall deleted a person page"
+    run "$label upgrade: schema install" 0 "$py" "$cli" schema install "$contrib" --root "$store"
+    [ -f "$store/schema.d/atlas-people.json" ] || fail "$label: overlay missing after upgrade"
+    [ -f "$store/templates/person.md" ] || fail "$label: templates/person.md missing after upgrade"
+    receipt_lists "$store" templates/person.md || fail "$label: receipt does not list templates/person.md after upgrade"
+    run "$label compile (after upgrade)" 0 "$py" "$cli" compile --root "$store"
 
     run "$label schema uninstall" 0 "$py" "$cli" schema uninstall atlas-people --root "$store"
     [ ! -e "$store/schema.d/atlas-people.json" ] || fail "$label: schema.d/atlas-people.json still present"
+    [ ! -e "$store/templates/person.md" ] || fail "$label: templates/person.md still present after uninstall"
     [ -f "$page" ] || fail "$label: uninstall deleted a person page"
+    [ -f "$store/people/bea-legacy.md" ] || fail "$label: uninstall deleted the legacy person page"
     run "$label compile (after uninstall)" 0 "$py" "$cli" compile --root "$store"
+
+    # Atlas behaviour pin, in its own throwaway store: a plain re-install
+    # (here with --force) over an installed overlay keeps the old template
+    # but drops it from the receipt, so uninstall leaves it behind.
+    pin="$tmp/pin-$n"
+    run "$label pin: init" 0 "$py" "$cli" init --root "$pin" --schema-version "$sv"
+    run "$label pin: schema install" 0 "$py" "$cli" schema install "$contrib" --root "$pin"
+    receipt_lists "$pin" templates/person.md || fail "$label: pin: first install receipt lacks templates/person.md"
+    run "$label pin: plain schema install --force" 0 "$py" "$cli" schema install "$contrib" --root "$pin" --force
+    if receipt_lists "$pin" templates/person.md; then
+      fail "$label: pin: Atlas now keeps templates/person.md on the receipt after a plain re-install; revisit the upgrade docs"
+    fi
+    run "$label pin: schema uninstall" 0 "$py" "$cli" schema uninstall atlas-people --root "$pin"
+    [ -f "$pin/templates/person.md" ] || fail "$label: pin: Atlas now removes the orphaned template; revisit the removal docs"
+    # Documented recovery: delete the orphaned template, then install again.
+    rm -f "$pin/templates/person.md"
+    run "$label pin: schema install (recovered)" 0 "$py" "$cli" schema install "$contrib" --root "$pin"
+    receipt_lists "$pin" templates/person.md || fail "$label: pin: recovered receipt lacks templates/person.md"
+    run "$label pin: compile" 0 "$py" "$cli" compile --root "$pin"
 
     echo "PASS $label"
   done
