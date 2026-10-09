@@ -5,7 +5,7 @@ Load after the `atlas-people` Enter card with `path: remember`.
 ## When
 
 Persist or update a person page, bio/history/excerpts, or a typed
-relationship edge on the operator-owned people Atlas.
+relationship edge on the Atlas the operator chooses for person pages.
 
 ## Inputs
 
@@ -16,10 +16,14 @@ relationship edge on the operator-owned people Atlas.
 
 ## Procedure
 
-1. Confirm Enter card: `atlas_id` is the operator-supplied
-   `<people-atlas-id>`, `push_remote` is filled, `atlas_target: confirmed`,
-   and `memory_sync` / `compile_push` are filled. Missing binding → **stop**
-   (`incomplete: missing people store binding`).
+1. Confirm the target: before the first write, ask the operator which Atlas
+   the person pages should be stored in, offering any known or bound Atlas
+   and allowing any other. Proceed only when `atlas_id` is the
+   operator-confirmed `<target-atlas-id>`, `push_remote` is filled,
+   `atlas_target: confirmed`, and `memory_sync` / `compile_push` are filled.
+   No confirmation → **stop** (`incomplete: atlas target not confirmed`).
+   The skill never refuses a target on policy grounds; for a shared,
+   work/project, or public target add a non-blocking visibility note.
 2. Reject secret-class content (passwords, SSN-class). Redact or **stop**.
 3. **Dry-run gate (`memory_sync: off`):** after redaction and **before**
    identity resolution or any store mutation, emit a read-only preview of
@@ -29,7 +33,7 @@ relationship edge on the operator-owned people Atlas.
    compile / commit / push. Stop with receipt `memory_sync: off`.
 4. Load EXTERNAL **`atlas`** path `mount`. If the live store is missing →
    **stop** with deferral `awaiting store provision`. Do not invent a
-   tip.
+   tip. Resolved store differs from the confirmed `atlas_id` → **stop**.
 5. Resolve identity (only when `memory_sync: on`):
    - Existing `person_id` → update that page.
    - Hard id match (email/phone/profile slug) to exactly one page → update.
@@ -37,15 +41,20 @@ relationship edge on the operator-owned people Atlas.
      append to the review queue and ask the operator.
 6. Allocate `person_id` when creating: Atlas-owned kebab slug from primary
    name + disambiguator if needed. Never use CNContact id or Notes title.
-7. Write/update a `type: document` page with `person_contract: v1` per
-   `references/person-page-schema.md`. Set `sensitivity: restricted`.
+7. Write/update a person page with `person_contract: v1` per
+   `references/person-page-schema.md`. Set `sensitivity: restricted`. New
+   pages use `type: person`. A legacy v0.1.2 page (`type: document` +
+   `person_contract: v1`) stays valid; set `type: person` on it only when
+   the `atlas-people` overlay is mounted on this Atlas
+   (`schema.d/atlas-people.json` present), otherwise leave its `type` as
+   it is.
 8. Add `relates_to` edges with the closed vocabulary (+ `related` escape).
    Optionally write the reciprocal edge on the other person page.
 9. Source pointers: for Apple Notes use **note id** (and folder id when
    known). Title-only → **stop**.
 10. Load EXTERNAL **`atlas`** path `remember` and follow compile rules.
 11. When `compile_push: on`: EXTERNAL **`atlas-compile-commit-push`** to
-    the operator-supplied `<push-remote>` only. When `compile_push: off`:
+    the operator-confirmed `<push-remote>` only. When `compile_push: off`:
     **do not** publish (no compile-for-push / commit / push).
 
 ## Outputs
@@ -60,7 +69,6 @@ relationship edge on the operator-owned people Atlas.
 - Missing stable id strategy / name-only merge attempt
 - Secret-class content
 - Title-only Notes targeting
-- Wrong Atlas (any non-people Atlas — the operator's personal or work Atlas,
-  another agent's Atlas — or the Autogenesis subject)
-- Missing or unconfirmed operator store binding
+- Target not confirmed by the operator, changed without a fresh
+  confirmation, or resolving to a different `atlas_id`
 - Store not provisioned

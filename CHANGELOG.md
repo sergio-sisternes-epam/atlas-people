@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.1.3 — 2026-10-09
+
+Target-neutral storage for person pages, and an Atlas overlay that declares
+the `person` type.
+
+- Removed the package policy that forced person pages into a separately
+  bound people store and forbade writing them to a work, project, personal,
+  or other agent's Atlas. The skill no longer forbids or forces any Atlas
+  target.
+- Before the first write (remember, import-notes, or compile/push) in a run,
+  the skill now asks the operator which Atlas the person pages should be
+  stored in, offers any known or bound Atlas (Enter card, install config, or
+  Atlases the EXTERNAL `atlas` skill can list or resolve), and accepts any
+  other Atlas the operator names.
+- Writes happen only after explicit per-target confirmation:
+  `atlas_target: confirmed` now means the operator confirmed that specific
+  `atlas_id` (and its `push_remote`) for this run. Install-config and
+  Enter-card values are suggested defaults, not confirmations; a changed
+  target is confirmed again. The skill never refuses a target on policy
+  grounds.
+- Privacy notes about visibility on shared, work/project, or public targets
+  are advisory and never block.
+- Stop string renamed from `incomplete: missing people store binding` to
+  `incomplete: atlas target not confirmed`; placeholder renamed from
+  `<people-atlas-id>` to `<target-atlas-id>`.
+- Scenarios: dropped the smokes asserting the old forbid rule; added smokes
+  for the target question, per-target confirmation, acceptance of a
+  confirmed work/project Atlas, no policy refusal, non-blocking privacy
+  advice, and a negative smoke against the old forbid wording.
+- New Atlas overlay `contributions/atlas-people/` (`SCHEMA.overlay.json`,
+  `templates/person.md`, `README.md`) declaring one new type, `person`. It
+  carries contract keys only (`contribution_id`, `templates`): no claimed
+  folders, no extension slot, no core type redeclared. Atlas checks 8
+  required keys (`type`, `title`, `created`, `updated`, `sensitivity`,
+  `person_contract`, `person_id`, `names`); the skill still requires
+  `origin` and `aliases` and the rest of the person-page schema.
+- New person pages use `type: person`. Pages written by v0.1.2
+  (`type: document` + `person_contract: v1`) stay valid; query recognises
+  both by `person_contract: v1`, and remember retypes a legacy page to
+  `person` only on an Atlas where the overlay is mounted.
+- SKILL.md gains a **Mount the Atlas overlay** step: `apm install` never
+  mounts the overlay; after target confirmation and resolve, the skill asks
+  the operator and mounts it only on the confirmed target with
+  `atlas.py schema install <pkg-root>/contributions/atlas-people --root
+  <atlas-root>` and compile. Declining is advisory, not a block. Upgrade
+  re-runs `schema install` from the new package root (`--force` when
+  required keys change); removal is `schema uninstall atlas-people` and
+  compile. The package ref is recorded on the exit receipt.
+- Tested with Atlas 0.13.0 and 0.13.1 on SCHEMA 1.0 and 2.0 stores. New
+  `scripts/overlay-smoke.sh` (static contract check plus install, compile,
+  missing-key, reinstall, and uninstall runs) and scenario file
+  `people-overlay-v1.yaml`.
+- CI installs `jsonschema==4.25.1` (needed by the Atlas CLI for SCHEMA 2.0
+  stores; the pin matches Atlas `scripts/requirements-ci.txt`), checks out
+  the Atlas CLI at v0.13.1 and v0.13.0, and runs the overlay smoke against
+  both.
+
 ## 0.1.2 — 2026-10-09
 
 Standalone public package `atlas-people`.

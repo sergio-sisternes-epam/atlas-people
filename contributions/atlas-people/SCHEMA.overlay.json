@@ -1,0 +1,18 @@
+{
+  "contribution_id": "atlas-people",
+  "templates": {
+    "by_type": {
+      "person": {
+        "file": "templates/person.md",
+        "frontmatter": {
+          "required": ["type", "title", "created", "updated", "sensitivity", "person_contract", "person_id", "names"],
+          "recommended": ["origin", "aliases", "sources", "notes_excerpts", "relates_to"]
+        },
+        "sections": {
+          "required": [],
+          "recommended": ["Bio", "History", "Notes excerpts", "Sources", "Relationships"]
+        }
+      }
+    }
+  }
+}

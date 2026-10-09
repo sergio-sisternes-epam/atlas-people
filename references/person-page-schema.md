@@ -1,27 +1,43 @@
 # Person page schema (normative contract)
 
-Runtime people store: the operator-supplied `<people-atlas-id>` (Enter card
-or install config; never hard-coded in this skill).
+Target Atlas: the operator-confirmed `<target-atlas-id>` (the skill asks the
+operator where to store person pages each run; never hard-coded in this
+skill).
 
 ## OKF type pin
 
-The people store's SCHEMA typically ships recommended types
-`experience`, `decision`, `work`, `document`, `protostar`, `lesson`,
-`recipe` — **no** native `person` type. v0 pin:
-
-- **OKF type:** `document`
+- **OKF type:** `person`, declared by this package's Atlas overlay
+  (`contributions/atlas-people/SCHEMA.overlay.json`; mount it with the
+  EXTERNAL `atlas` path `schema`, see `SKILL.md`). New person pages use
+  `type: person`.
 - **Contract marker:** frontmatter `person_contract: v1` (required on every
   person page)
 - **Stable id:** `person_id` (Atlas-owned slug; required). Never CNContact id.
   Never Notes title.
 
-A later SCHEMA overlay that introduces a first-class `person` type is a new
-design; do not invent overlays in v0.
+### Legacy pages (v0.1.2)
+
+Pages written by v0.1.2 use `type: document` with `person_contract: v1`.
+They stay valid. Identify person pages by `person_contract: v1`, not by
+`type`: query recognises both `type: person` and `type: document` person
+pages. When remember updates a legacy page, it may set `type: person` only
+on an Atlas where the overlay is mounted; otherwise it leaves `type` as it
+is. New person pages always use `type: person`.
+
+### Who enforces which keys
+
+With the overlay mounted, Atlas compile checks 8 required keys on
+`type: person` pages (`type`, `title`, `created`, `updated`, `sensitivity`,
+`person_contract`, `person_id`, `names`) and reports a missing one as a
+`page_contract` warning. Atlas allows at most 8 required keys per type, so
+`origin` and `aliases` are only recommended there. The skill enforces every
+key under **Required frontmatter** below, including `origin` and `aliases`,
+on every person page, whether or not the overlay is mounted.
 
 ## Required frontmatter
 
 ```yaml
-type: document
+type: person            # legacy v0.1.2 pages: document
 title: "<primary display name>"
 created: "YYYY-MM-DD"
 updated: "YYYY-MM-DD"
@@ -69,7 +85,7 @@ notes_excerpts:
 ## Relationship vocabulary (closed set + escape)
 
 Use `relates_to` edges to other person pages (`path` relative inside the
-people store). Closed kinds:
+target Atlas). Closed kinds:
 
 | kind | Meaning |
 | --- | --- |
@@ -97,8 +113,6 @@ relates_to:
 - 1Password item titles, vault names, or ids (say only that 1Password is the
   vault when credentials are needed)
 - Using CNContact id or Notes title as `person_id`
-- Writing these pages into any non-people Atlas (for example the operator's
-  personal or work Atlas, or another agent's Atlas)
 
 ## Identity match rules (import / remember)
 

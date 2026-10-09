@@ -3,67 +3,87 @@ name: atlas-people
 activation_card: on
 description: >-
   Use when the operator needs to look up, remember, or update people and
-  relationships on the operator-owned people Atlas; when importing people and
-  claims once from Apple Notes; or when asking who someone is, how they relate,
-  or what was noted about them. Not for council or decision memory (use a
-  separate council/decision-memory skill), not for continuous Notes sync, not
-  for LinkedIn ingest in v0, not for Contacts.app mutation.
+  relationships stored as person pages on the Atlas the operator chooses and
+  confirms; when importing people and claims once from Apple Notes; or when
+  asking who someone is, how they relate, or what was noted about them. Not
+  for council or decision memory (use a separate council/decision-memory
+  skill), not for continuous Notes sync, not for LinkedIn ingest in v0, not
+  for Contacts.app mutation.
 ---
 
 # atlas-people
 
-Operator-owned **people Atlas** skill. Stable people + relationships on a
-dedicated runtime store; Apple Notes proves the shape once. Never nest people
-pages in any non-people Atlas (for example the operator's personal or work
-Atlas, or another agent's Atlas).
+People skill for Atlas. Stable people + relationships stored as person
+pages on **the Atlas the operator chooses and confirms** for each run; Apple
+Notes proves the shape once. The skill asks where person pages should be
+stored; it does not forbid or force any particular Atlas.
 
 **Design lineage / Autogenesis subject:** work_ids `2026-10-05-people-atlas`
 and `2026-10-05-people-privacy` live on **this repository's `atlas` branch**
 (`github.com/sergio-sisternes-epam/atlas-people`, ref `atlas`), declared in
-this package's `atlas-mesh.json`. The people store is **data**, not skill
-process memory; never provision it as a skill process host.
+this package's `atlas-mesh.json`. Person pages are **data**, not skill
+process memory, whichever Atlas the operator stores them in.
 
 British English. Prose uses **roles** (the operator, the provisioner, the
 package maintainer), not named humans.
 
-## Store binding (operator-supplied only)
+## Store target (operator-confirmed per run)
 
 This skill ships **no** store identity, host, checkout path, push remote, or
-credential location. The operator's Enter card or the install config
-supplies them for each run (same fail-closed pattern as `atlas-tasks-todoist`):
+credential location. The operator chooses and confirms the target Atlas for
+person pages on each run:
 
 | Field | Supplied by | Placeholder in this skill |
 | --- | --- | --- |
-| `atlas_id` (people store id) | operator Enter card or install config | `<people-atlas-id>` |
+| `atlas_id` (target Atlas id) | operator confirmation (options from the Enter card, install config, EXTERNAL `atlas` listing, or any other Atlas the operator names) | `<target-atlas-id>` |
 | `atlas_root` (working checkout) | EXTERNAL `atlas` `resolve` of that id | `<atlas-root>` |
-| `push_remote` (sole push target) | operator Enter card or install config | `<push-remote>` |
+| `push_remote` (only push target for the run) | operator, confirmed together with `atlas_id` | `<push-remote>` |
 | Transport credentials | operator environment; never in this skill | — |
 
-Rules:
+Rules (one target-neutral rule; the operator decides where person pages
+live):
 
-1. Writes, imports, and compile/push require `atlas_target: confirmed` — the
-   operator (or install config the operator set up) named `atlas_id` and
-   `push_remote` for this run. `atlas_root` is filled from EXTERNAL `atlas`
-   `resolve` of that `atlas_id` **before** the Enter card is emitted — do not
-   require the operator to pre-fill `atlas_root`.
-2. Missing, partial, or ambiguous binding → **stop**:
-   `incomplete: missing people store binding`. Never guess, never fall back to
-   a remembered value, never copy a value from another skill's docs.
-3. Only placeholders appear in this package. Do not paste live hostnames,
+1. **Ask where to store person pages.** Before the first write (remember,
+   import-notes, or compile/push) in a run, ask the operator which Atlas the
+   person pages should be stored in. Offer any known or bound Atlas as an
+   option (for example one named on the Enter card or in the install config,
+   or Atlases the EXTERNAL `atlas` skill can list or resolve) and also allow
+   any other Atlas the operator names.
+2. **Write only after explicit per-target confirmation.**
+   `atlas_target: confirmed` means the operator explicitly confirmed this
+   `atlas_id` (and its `push_remote`) as the target for this run. It is a
+   per-target confirmation, not an allow-list. An install-config or
+   Enter-card value is a suggested default, not an implicit confirmation:
+   still ask the operator to confirm it before the first write. If the
+   target changes, ask and confirm again.
+3. **Never refuse a target on policy grounds.** The skill never refuses a
+   target on policy grounds: a work, project, personal, shared, or another
+   agent's Atlas is accepted once the operator confirms it.
+4. **Privacy notes are advice only (non-blocking).** When the chosen target
+   is shared, a work or project Atlas, or a public repository branch,
+   mention that person pages will be visible to that Atlas's readers and let
+   the operator decide. This advice never blocks a write.
+5. **Fail closed on missing information.** No named or confirmed target →
+   `atlas_target: unknown` → **stop** before writing:
+   `incomplete: atlas target not confirmed` (query can still run
+   read-only). If `atlas resolve` of the confirmed target fails, or resolves
+   to something other than the confirmed `atlas_id` → **stop**. Never guess,
+   never fall back to a remembered value, never copy a value from another
+   skill's docs.
+6. `atlas_root` is filled from EXTERNAL `atlas` `resolve` of the confirmed
+   `atlas_id` **before** the Enter card is emitted — do not require the
+   operator to pre-fill `atlas_root`.
+7. Only placeholders appear in this package. Do not paste live hostnames,
    remotes, absolute checkout paths, SSH identity paths, or personal Atlas
    slugs into skill text, scenarios, CHANGELOG, or commit messages.
 
-**Forbidden write-homes for people pages:** any non-people Atlas (for example
-the operator's personal or work Atlas, or another agent's Atlas), and the
-Autogenesis subject store (this repository's `atlas` branch, declared in
-`atlas-mesh.json`). If `atlas_id` resolves to any of these roles → **stop**.
-
 ## Pins (normative)
 
-1. **Sole runtime store** — people pages live only on the operator-bound
-   people store (`<people-atlas-id>`). Never write people pages into any
-   non-people Atlas, such as the operator's personal or work Atlas.
-2. **Atlas-owned person_id** — primary key is owned by the people Atlas.
+1. **Operator-confirmed target** — person pages are written only to the
+   Atlas the operator explicitly confirmed for this run
+   (`<target-atlas-id>`). The skill asks where to store them and never
+   refuses a target on policy grounds.
+2. **Atlas-owned person_id** — primary key is owned by the target Atlas.
    CNContact / device contact ids and Notes titles are **source pointers
    only**, never the primary key.
 3. **No name-only merge** — auto-merge only on Phase-1 hard identifiers
@@ -81,12 +101,15 @@ Autogenesis subject store (this repository's `atlas` branch, declared in
    in skills or Atlas process pages. Do not copy passwords or SSN-class
    values into Atlas. Richer excerpts OK otherwise.
 8. **Compile green + push** via EXTERNAL `atlas-compile-commit-push` to the
-   operator-supplied `push_remote` only. No dual-push to any second remote.
-9. **The provisioner provisions the empty store only** — the operator owns
-   its content. Do not invent a fake store tip when the live store is
-   missing.
-10. **Operator store binding** — store id, checkout, and push remote come from
-    the operator Enter card or install config only; unconfirmed → stop.
+   operator-confirmed `push_remote` only. No dual-push to any second remote.
+9. **The provisioner provisions the empty store only** — when the confirmed
+   target does not exist yet, the provisioner provisions it empty and the
+   operator owns its content. Do not invent a fake store tip when the live
+   store is missing.
+10. **Operator target confirmation** — store id and push remote are confirmed
+    by the operator for this run (Enter card or install config values are
+    options, not confirmations); checkout comes from `atlas resolve`;
+    unconfirmed → stop before writing.
 
 ## Activation card
 
@@ -100,10 +123,10 @@ skill_path: <resolved install / package root>
 mode: run
 path: query | remember | import-notes
 intent: <one line>
-atlas_id: <people-atlas-id>          # operator-supplied
+atlas_id: <target-atlas-id>          # operator-confirmed target
 atlas_root: <atlas-root>             # filled by atlas resolve BEFORE emit
-push_remote: <push-remote>           # operator-supplied
-atlas_target: confirmed | unknown
+push_remote: <push-remote>           # confirmed with the target
+atlas_target: confirmed | unknown    # confirmed = operator confirmed this atlas_id for this run
 memory_sync: on | off
 compile_push: on | off
 import_scope: <folder id(s) or none>
@@ -117,18 +140,26 @@ invocation: actor-session
 - Omitted `import_scope` → **`none`**. import-notes with `none` → **stop**
   (folder scope required).
 - Omitted `path` → infer from intent; ambiguous → **stop**.
-- Omitted `atlas_id` / `push_remote` → **no default**. Take them from the
-  install config the operator set up; if absent → `atlas_target: unknown` →
-  **stop** for any write. Query may explain the contract only.
+- Omitted `atlas_id` / `push_remote` → **no default**. Ask the operator
+  which Atlas the person pages should be stored in, offering any known or
+  bound Atlas (install config, Enter card, EXTERNAL `atlas` listing) and
+  allowing any other. An install-config or Enter-card value is a suggested
+  default, not an implicit confirmation. No explicit confirmation →
+  `atlas_target: unknown` → **stop** for any write. Query may still run
+  read-only.
 
 ### Fail closed
 
 - Missing or partial Enter card → **stop**.
 - `atlas_target` not `confirmed` for remember / import-notes / compile-push
-  → **stop**.
-- `atlas_id` naming any non-people Atlas (the operator's personal or work
-  Atlas, another agent's Atlas) or the Autogenesis subject for people pages
-  → **stop**.
+  → **stop** (`incomplete: atlas target not confirmed`).
+- Target changed since the operator confirmed it → ask and confirm again
+  before the next write; no fresh confirmation → **stop**.
+- `atlas resolve` of the confirmed target fails, or resolves to something
+  other than the confirmed `atlas_id` → **stop**.
+- Never stop because of *which* Atlas the operator chose: a work, project,
+  personal, shared, or another agent's Atlas is accepted once confirmed.
+  Privacy notes about visibility are advice only.
 - import-notes without explicit folder scope → **stop**.
 - Title-only Notes targeting → **stop**.
 - Name-only auto-merge → **stop**; queue review instead.
@@ -137,7 +168,7 @@ invocation: actor-session
 - Exit incomplete if remember/import with `memory_sync: on` but no Atlas
   write, or if compile fails, or if `compile_push: on` and push skipped
   while the live store is reachable.
-- If the live people store is not yet provisioned, do not invent a tip;
+- If the confirmed target store is not yet provisioned, do not invent a tip;
   record deferral **awaiting store provision** (the provisioner has not yet
   provisioned the empty store) and still complete package/docs work.
 
@@ -147,10 +178,12 @@ invocation: actor-session
 | --- | --- | --- |
 | Query / remember / import-notes procedures | **LOCAL** `references/paths/*.md` | Progressive disclosure; path-segregated |
 | Person page schema + relationship vocabulary | **LOCAL** `references/person-page-schema.md` | Unique to this skill |
+| Atlas overlay (type `person`) | **LOCAL** `contributions/atlas-people/` | Lets Atlas compile check person-page frontmatter |
 | Atlas mount / query / remember / compile | **EXTERNAL** (`atlas`) | Claim-bearing store authority |
-| Compile → commit → push | **EXTERNAL** (`atlas-compile-commit-push`) | Standing hygiene to the operator-supplied remote |
+| Overlay mount / upgrade / remove | **EXTERNAL** (`atlas` path `schema`) | CLI is the only writer of `schema.d/`; mounted only on the confirmed target |
+| Compile → commit → push | **EXTERNAL** (`atlas-compile-commit-push`) | Standing hygiene to the operator-confirmed remote |
 | Apple Notes read bridge | **EXTERNAL** (`apple-notes`) | S7 deterministic Mac bridge; id-safe |
-| Council / decision memory | **Not selected** | Different write-homes; a separate council/decision-memory skill owns it |
+| Council / decision memory | **Not selected** | Out of scope; a separate council/decision-memory skill owns it |
 | LinkedIn ingest | **Not selected** (v0) | After Notes proves shape |
 | Autogenesis invocation protocol on this skill | **Not selected** | No full fusion by default |
 
@@ -162,19 +195,33 @@ it — never a cwd-relative reinvented copy.
 ### 0. Enter
 
 1. Resolve `path`: `query` | `remember` | `import-notes`.
-2. Take `atlas_id` and `push_remote` from the operator Enter card or install
-   config. Missing → **stop** (`incomplete: missing people store binding`).
+2. **Ask for the target before the first write.** For remember,
+   import-notes, or any compile/push, ask the operator which Atlas the
+   person pages should be stored in. Offer any known or bound Atlas (for
+   example one named on the Enter card or in the install config, or
+   Atlases the EXTERNAL `atlas` skill can list or resolve) and allow any
+   other Atlas the operator names. Set `atlas_id` and `push_remote` from the
+   operator's answer and `atlas_target: confirmed` only after the operator
+   explicitly confirms that specific target. If the target is shared, a
+   work or project Atlas, or a public repository branch, add a non-blocking
+   note that person pages will be visible to its readers. No confirmation →
+   `atlas_target: unknown` → **stop** before writing
+   (`incomplete: atlas target not confirmed`). For query, a known or
+   operator-named Atlas is enough to read.
 3. **Resolve `atlas_root` before the card:** load EXTERNAL **`atlas`** path
-   `mount` / `resolve` for the operator-named `<people-atlas-id>` and set
+   `mount` / `resolve` for the confirmed `<target-atlas-id>` and set
    `atlas_root` only from that result. Do **not** require `atlas_root` to be
    pre-filled by the operator. If mount / `git ls-remote` fails because the
    empty store is not yet provisioned → **stop** with deferral reason
    `awaiting store provision` (query may still explain the contract;
-   remember/import that need a live write must defer). Wrong Atlas / foreign
-   store → **stop**.
+   remember/import that need a live write must defer). Resolve returns a
+   different `atlas_id` than the operator confirmed → **stop** and ask the
+   operator to confirm again.
 4. Emit the activation card with **every field filled**, including the
    resolved `atlas_root`. Missing resolve → incomplete card → **stop**.
-5. Load the matching LOCAL path module under `references/paths/` and follow it.
+5. For remember and import-notes, run **2. Mount the Atlas overlay** on the
+   confirmed target before the first write.
+6. Load the matching LOCAL path module under `references/paths/` and follow it.
 
 ### 1. Mount (all paths that need the store)
 
@@ -183,9 +230,72 @@ it — never a cwd-relative reinvented copy.
 2. If a later path step rediscovers that the live store is unreachable →
    **stop** with deferral `awaiting store provision`. Do not invent a fake
    tip.
-3. Wrong Atlas / foreign store → **stop**.
+3. Mounted store differs from the confirmed `atlas_id`, or the operator
+   names a different target mid-run → **stop** writes until the operator
+   confirms the target again.
 
-### 2. Path dispatch
+### 2. Mount the Atlas overlay (confirmed target only)
+
+This package ships an Atlas overlay at `contributions/atlas-people/` that
+declares the type `person` (see `contributions/atlas-people/README.md`).
+`apm install` only installs the skill package; it never mounts the overlay
+into any Atlas. Mounting is a separate, explicit step through EXTERNAL
+**`atlas`** path `schema`, run after target confirmation and resolve
+(**0. Enter**) and before the first write.
+
+1. **Locate the package root.** After
+   `apm install sergio-sisternes-epam/atlas-people#v0.1.3`, the package
+   root is `apm_modules/sergio-sisternes-epam/atlas-people/` in the project
+   where it was installed (`<pkg-root>`). Confirm the tag
+   (`resolved_ref` / `version`) in `apm.lock.yaml`, and check that
+   `<pkg-root>/contributions/atlas-people/SCHEMA.overlay.json` exists.
+2. **Check the confirmed target.** Mount only on the Atlas the operator
+   confirmed as the target for this run (`<atlas-root>` from
+   `atlas resolve`). Never mount on an Atlas the operator did not name and
+   confirm. If `<atlas-root>/schema.d/atlas-people.json` already matches the
+   package overlay, the overlay is current; skip to step 5.
+3. **Ask before mounting.** Mounting changes that Atlas's contract, so ask
+   the operator first (same ask-then-confirm flow as writes). If the
+   operator declines, continue: the skill still works, because an unknown
+   `type` is legal OKF and only Atlas-side frontmatter checks are missing.
+   This is advisory, never a block.
+4. **Mount and compile** (operator agreed):
+
+   ```bash
+   python3 <atlas-skill>/scripts/atlas.py schema install <pkg-root>/contributions/atlas-people --root <atlas-root>
+   python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>
+   ```
+
+   Compile must stay green; exit 2 → fix through `schema` verbs, never by
+   editing `schema.d/` by hand.
+5. **Record the package ref** (tag or commit from `apm.lock.yaml`) on the
+   exit receipt, for example
+   `overlay: mounted | current | declined` and
+   `source: sergio-sisternes-epam/atlas-people#v0.1.3`.
+
+**Upgrade.** After `apm install sergio-sisternes-epam/atlas-people#vNEW` or
+`apm update`, the target keeps the old overlay until `schema install` is
+re-run from the new package root. Re-run after every upgrade, with the
+operator's agreement, on each Atlas that holds the overlay; add `--force`
+when the overlay's required frontmatter keys changed (install exits 2
+otherwise). Then compile.
+
+**Remove.** `apm uninstall` leaves `schema.d/atlas-people.json` in every
+store. To remove the overlay from a confirmed Atlas:
+
+```bash
+python3 <atlas-skill>/scripts/atlas.py schema uninstall atlas-people --root <atlas-root>
+python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>
+```
+
+Uninstall does not delete person pages; `type: person` stays legal OKF.
+
+**Page type.** New person pages use `type: person`. Legacy v0.1.2 pages
+(`type: document` + `person_contract: v1`) stay valid; remember sets
+`type: person` on them only where the overlay is mounted
+(`references/person-page-schema.md`).
+
+### 3. Path dispatch
 
 | Path | Load | Summary |
 | --- | --- | --- |
@@ -195,16 +305,17 @@ it — never a cwd-relative reinvented copy.
 
 Person page contract: `references/person-page-schema.md`.
 
-### 3. Compile + push (Pins 8–10)
+### 4. Compile + push (Pins 8–10)
 
 After Atlas writes, when `compile_push: on` and the live store is reachable:
 
-1. Run `atlas compile` green on the people store root
+1. Run `atlas compile` green on the confirmed target root
    (`python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>`).
 2. Load EXTERNAL **`atlas-compile-commit-push`** and follow it exactly.
-3. Push branch `atlas` to `<push-remote>` only.
+3. Push branch `atlas` to the confirmed `<push-remote>` only.
 4. **Forbidden:** dual-push to any second remote; `GIT_LFS_SKIP_PUSH` on
-   ordinary pushes; writing people pages to any non-people Atlas.
+   ordinary pushes; writing person pages to any Atlas other than the one
+   the operator confirmed for this run.
 
 Exit incomplete if compile fails or push is skipped while `compile_push: on`
 and the store is reachable. If the store is not provisioned, record the
@@ -213,12 +324,17 @@ deferral and do not claim a tip.
 ## Exit checklist
 
 - [ ] Activation card emitted (every field filled; `atlas_target: confirmed` for writes)
-- [ ] Right Atlas chosen (operator-bound people store only for people pages)
+- [ ] Operator asked which Atlas the person pages should be stored in (known or bound Atlases offered; any other allowed)
+- [ ] Target explicitly confirmed by the operator before the first write; re-confirmed if it changed
+- [ ] No target refused on policy grounds; privacy note given as advice only when the target is shared, work/project, or public
+- [ ] Atlas overlay: operator asked before mounting on the confirmed target only (`schema install <pkg-root>/contributions/atlas-people`, then compile green), or already current, or declined (advisory); package ref recorded on the exit receipt
+- [ ] After a package upgrade, `schema install` re-run from the new package root (with `--force` if required keys changed) on each Atlas that holds the overlay
+- [ ] New person pages use `type: person`; legacy `type: document` pages retyped only where the overlay is mounted
 - [ ] Path module followed; person contract observed
-- [ ] No nest into any non-people Atlas; no name-only merge
+- [ ] No name-only merge
 - [ ] Notes id required; no title-only Notes targeting
 - [ ] No secret-class content; 1Password named only as the vault
-- [ ] Compile green + push to `<push-remote>` when writes landed and store is live (EXTERNAL ccp)
+- [ ] Compile green + push to the confirmed `<push-remote>` when writes landed and store is live (EXTERNAL ccp)
 - [ ] Or explicit deferral `awaiting store provision` when store missing
 - [ ] No continuous sync; no LinkedIn in v0
 - [ ] No live host, remote, checkout path, or credential path echoed into skill text
@@ -227,9 +343,9 @@ deferral and do not claim a tip.
 
 - Continuous Apple Notes sync
 - LinkedIn (or other) ingest in v0
-- Nesting people pages in any non-people Atlas (for example the operator's
-  personal or work Atlas, or another agent's Atlas)
-- Treating the people store as skill process memory (it is data)
+- Restricting or forcing the Atlas target on policy grounds (the operator
+  decides; the skill asks and confirms)
+- Treating person pages as skill process memory (they are data)
 - Dual-push to retired local bare repositories or any second remote
 - Shipping a default store id, host, checkout path, push remote, or SSH
   identity in this package
@@ -250,8 +366,15 @@ it over the mirror in the **same commit**. The `apm-mirror-lockstep` smoke in
 Install a tagged release (tag `v<version>`), for example:
 
 ```bash
-apm install sergio-sisternes-epam/atlas-people#v0.1.2
+apm install sergio-sisternes-epam/atlas-people#v0.1.3
 ```
 
-The install config is where the operator records `atlas_id` and
-`push_remote` for this skill; the package itself carries placeholders only.
+The install config is where the operator may record a suggested `atlas_id`
+and `push_remote`; the skill offers it as an option and still asks the
+operator to confirm it before the first write. The package itself carries
+placeholders only.
+
+The install does not touch any Atlas. The package's Atlas overlay
+(`contributions/atlas-people/`, type `person`) is mounted separately, only
+on the confirmed target and with the operator's agreement: see
+**2. Mount the Atlas overlay** above.

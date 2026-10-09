@@ -4,7 +4,8 @@ Load after the `atlas-people` Enter card with `path: import-notes`.
 
 ## When
 
-Supervised **one-shot** Apple Notes import into the people Atlas. Proves
+Supervised **one-shot** Apple Notes import into the operator-confirmed
+target Atlas. Proves
 person-page shape. Not continuous sync.
 
 ## Pins inherited
@@ -34,11 +35,15 @@ Reload this checklist before list, before read, and before Atlas writes.
 
 ## Procedure
 
-1. Confirm Enter card: `path: import-notes`, `import_scope` not `none`,
-   `atlas_id` is the operator-supplied `<people-atlas-id>`, `push_remote` is
-   filled, `atlas_target: confirmed`, and `memory_sync` / `compile_push` are
-   filled. Missing binding → **stop**
-   (`incomplete: missing people store binding`).
+1. Confirm the target: before the first write, ask the operator which Atlas
+   the person pages should be stored in, offering any known or bound Atlas
+   and allowing any other. Proceed only when `path: import-notes`,
+   `import_scope` is not `none`, `atlas_id` is the operator-confirmed
+   `<target-atlas-id>`, `push_remote` is filled, `atlas_target: confirmed`,
+   and `memory_sync` / `compile_push` are filled. No confirmation → **stop**
+   (`incomplete: atlas target not confirmed`). The skill never refuses a
+   target on policy grounds; for a shared, work/project, or public target
+   add a non-blocking visibility note.
 2. If `import_scope` is missing / `none` / "whole library" without named
    folders → **stop**. Refuse unbounded library export.
 3. Confirm Mac + Automation approval via EXTERNAL **`apple-notes`**
@@ -59,16 +64,17 @@ Reload this checklist before list, before read, and before Atlas writes.
    - Hard identifiers only for auto-merge.
    - Never auto-merge on name alone; single-token names stay unmerged.
    - Ambiguous pairs → review queue (human checkpoint). Do not guess.
-10. Write/update person pages on the people Atlas only, with source
-    pointers `{kind: apple-notes, id: <note-id>, folder_id?, captured_at}`.
-    Follow `references/person-page-schema.md` and path `remember` compile
-    rules via EXTERNAL **`atlas`**. Confirmed store binding does **not**
+10. Write/update person pages on the confirmed target Atlas only, with
+    source pointers `{kind: apple-notes, id: <note-id>, folder_id?, captured_at}`.
+    Follow `references/person-page-schema.md` (new pages `type: person`;
+    legacy `type: document` pages handled as in path `remember`) and path
+    `remember` compile rules via EXTERNAL **`atlas`**. A confirmed target does **not**
     override `memory_sync: off` (already gated in step 8).
 11. If the live store is not provisioned → **stop** writes with deferral
     `awaiting store provision`. Keep the extraction/review receipt
     locally in the turn report only — do not invent a tip.
 12. When `compile_push: on` and the live store is reachable: compile green;
-    EXTERNAL **`atlas-compile-commit-push`** to the operator-supplied
+    EXTERNAL **`atlas-compile-commit-push`** to the operator-confirmed
     `<push-remote>`. When `compile_push: off`: **do not** compile for
     publication, commit, or push — leave local preview/write state as the
     receipt describes and stop.
@@ -88,5 +94,6 @@ Reload this checklist before list, before read, and before Atlas writes.
 - Title-only targeting
 - Whole-library without explicit folder scope
 - Name-only merge attempts
+- Target not confirmed by the operator
 - Store not provisioned (awaiting store provision)
 - Continuous-sync requests → refuse; point to future design

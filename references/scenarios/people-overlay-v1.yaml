@@ -1,0 +1,93 @@
+id: people-overlay-v1
+packages:
+  - atlas-people
+work_id: 2026-10-09-people-overlay
+adversarial: true
+# Run every check from the package root (bash scripts/run-scenarios.sh).
+# The live overlay smoke needs ATLAS_CLI (an Atlas checkout's
+# scripts/atlas.py) and records a deferral when it is unset.
+smokes:
+  - id: overlay-files-present
+    source: atlas-schema-path-3a
+    expect: the package ships contributions/atlas-people with SCHEMA.overlay.json, templates/person.md, and a README
+    check: |
+      test -f contributions/atlas-people/SCHEMA.overlay.json
+      test -f contributions/atlas-people/templates/person.md
+      test -f contributions/atlas-people/README.md
+      python3 -c 'import json; json.load(open("contributions/atlas-people/SCHEMA.overlay.json"))'
+      rg -n '^type: person$' contributions/atlas-people/templates/person.md
+      rg -n '^person_contract: v1$' contributions/atlas-people/templates/person.md
+  - id: overlay-root-keys-contract-only
+    source: atlas-schema-root-keys
+    expect: overlay root keys are a subset of contribution_id and templates; contribution_id is atlas-people; no claimed folders
+    check: |
+      python3 - <<'PY'
+      import json
+      o = json.load(open("contributions/atlas-people/SCHEMA.overlay.json"))
+      extra = set(o) - {"contribution_id", "templates"}
+      assert not extra, f"extra root keys: {sorted(extra)}"
+      assert o["contribution_id"] == "atlas-people", o["contribution_id"]
+      assert "claimed_folders" not in o
+      PY
+  - id: overlay-no-extension-slot
+    source: atlas-schema-extension-slot
+    expect: the overlay carries no atlas_people extension slot, so older Atlas readers compile SCHEMA 2.0 stores that hold it
+    check: |
+      python3 -c 'import json; o=json.load(open("contributions/atlas-people/SCHEMA.overlay.json")); assert "atlas_people" not in o, o'
+  - id: overlay-no-core-redeclare
+    source: atlas-schema-hard-rule-3
+    expect: the overlay declares only the new type person, redeclares no core type, and stays within 8 required frontmatter keys
+    check: |
+      python3 - <<'PY'
+      import json
+      o = json.load(open("contributions/atlas-people/SCHEMA.overlay.json"))
+      types = o["templates"]["by_type"]
+      core = {"work", "document", "experience", "decision", "lesson", "recipe",
+              "protostar", "gist", "frame", "memory", "schema"}
+      assert set(types) == {"person"}, sorted(types)
+      assert not set(types) & core
+      req = types["person"]["frontmatter"]["required"]
+      assert len(req) <= 8, req
+      PY
+  - id: overlay-live-smoke
+    source: atlas-schema-test-both-stores
+    expect: with ATLAS_CLI set, the overlay installs, compiles, flags a missing person_id, reinstalls, and uninstalls on SCHEMA 1.0 and 2.0 stores; otherwise a deferral is recorded
+    check: |
+      bash scripts/overlay-smoke.sh
+  - id: skill-mount-overlay-commands
+    source: atlas-schema-path-3a
+    expect: SKILL.md documents schema install from contributions/atlas-people, schema uninstall atlas-people, and a re-run after upgrade
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F 'schema install <pkg-root>/contributions/atlas-people --root <atlas-root>' >/dev/null
+      flat SKILL.md | grep -F 'schema uninstall atlas-people --root <atlas-root>' >/dev/null
+      flat SKILL.md | grep -F 'apm_modules/sergio-sisternes-epam/atlas-people/' >/dev/null
+      flat SKILL.md | grep -F 'apm.lock.yaml' >/dev/null
+      flat SKILL.md | grep -F 're-run from the new package root' >/dev/null
+      flat SKILL.md | grep -F 'add `--force` when the overlay' >/dev/null
+      flat SKILL.md | grep -F 'Overlay mount / upgrade / remove | **EXTERNAL** (`atlas` path `schema`)' >/dev/null
+  - id: skill-mount-confirmed-target-only
+    source: owner-design-target-neutral
+    expect: SKILL.md mounts the overlay only on the operator-confirmed target, asks first, and treats a declined mount as advisory
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F "it never mounts the overlay into any Atlas" >/dev/null
+      flat SKILL.md | grep -F 'Mount only on the Atlas the operator confirmed as the target for this run' >/dev/null
+      flat SKILL.md | grep -F 'Never mount on an Atlas the operator did not name and confirm' >/dev/null
+      flat SKILL.md | grep -F 'This is advisory, never a block' >/dev/null
+  - id: person-type-and-legacy
+    source: owner-design-person-type
+    expect: new person pages use type person; v0.1.2 type document pages stay valid and are recognised by person_contract v1
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat references/person-page-schema.md | grep -F '**OKF type:** `person`' >/dev/null
+      flat references/person-page-schema.md | grep -F 'Identify person pages by `person_contract: v1`' >/dev/null
+      flat references/paths/query.md | grep -F 'legacy v0.1.2 `type: document` pages count' >/dev/null
+      flat references/paths/remember.md | grep -F 'New pages use `type: person`' >/dev/null
+      ! rg -n -e 'do not invent overlay[s]' -e '\*\*no\*\* native `perso[n]` type' references/paths references/person-page-schema.md SKILL.md README.md contributions/
+  - id: overlay-mirror-lockstep
+    source: review-feedback-apm-duplicate
+    expect: the .apm mirror still matches the root SKILL.md after the mount step was added
+    check: |
+      cmp SKILL.md .apm/skills/atlas-people/SKILL.md
+      rg -n -F 'Mount the Atlas overlay' .apm/skills/atlas-people/SKILL.md
