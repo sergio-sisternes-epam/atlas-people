@@ -29,6 +29,12 @@ any other Atlas the operator names.
 | Working checkout | `<atlas-root>` | `atlas resolve` of that id |
 | Push remote for the run | `<push-remote>` | confirmed with the target |
 
+A local-only Atlas with no remote is a valid write target: the operator
+confirms `push_remote: none` as part of the target confirmation (the skill
+never defaults to `none` when the target has a remote). Publishing is then
+disabled: compile still runs, the push step is skipped and recorded on the
+receipt, and the target's visibility is private.
+
 Writes require `atlas_target: confirmed` — the operator explicitly confirmed
 that specific `atlas_id` (and its `push_remote`) for this run. It is a
 per-target confirmation, not an allow-list; an install-config value is a
@@ -156,6 +162,10 @@ Scenarios (`references/scenarios/`):
 - `people-overlay-v1.yaml` — Atlas overlay shape (contract keys only, no
   slot, no core redeclaration), SKILL.md mount / upgrade / remove wording,
   and the live overlay smoke.
+- `people-public-ack-v1.yaml` — public-visibility acknowledgement gate
+  (exact prompt, `unknown` treated as public, decline stops with no write)
+  and local-only targets with a confirmed `push_remote: none` (private,
+  writes allowed, publishing disabled).
 
 Run every smoke from the package root (needs `python3`, PyYAML, and
 `ripgrep`):

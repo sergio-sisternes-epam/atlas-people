@@ -29,7 +29,7 @@ person-page shape. Not continuous sync.
 | I5 | Match policy | Hard ids only for auto-merge; name-only → review |
 | I6 | Secrets check | No password/SSN-class into Atlas |
 | I7 | Dry-run flags | `memory_sync` / `compile_push` filled; `off` skips write / publish |
-| I8 | Compile + push | Green compile; EXTERNAL ccp only when `compile_push: on` and live |
+| I8 | Compile + push | Green compile; EXTERNAL ccp only when `compile_push: on` and live; confirmed `push_remote: none` (local-only) → push skipped and recorded, not incomplete |
 | I9 | Visibility ack | `atlas_target_visibility` is `private` or `public-acknowledged` before the overlay mount and first write |
 
 Reload this checklist before list, before read, and before Atlas writes.
@@ -41,7 +41,12 @@ Reload this checklist before list, before read, and before Atlas writes.
    and allowing any other. Proceed only when `path: import-notes`,
    `import_scope` is not `none`, `atlas_id` is the operator-confirmed
    `<target-atlas-id>`, `push_remote` is filled, `atlas_target: confirmed`,
-   and `memory_sync` / `compile_push` are filled. No confirmation → **stop**
+   and `memory_sync` / `compile_push` are filled. `push_remote` is the
+   confirmed remote, or `none` only for a local-only Atlas with no remote
+   when the operator confirmed `none` as part of the target confirmation
+   (writes allowed, publishing disabled). Never default to `none` when the
+   target has a remote; an unconfirmed `none` is an unconfirmed target.
+   No confirmation → **stop**
    (`incomplete: atlas target not confirmed`). The skill never refuses a
    target on policy grounds; for a shared, work/project, or public target
    add a non-blocking visibility note.
@@ -64,7 +69,8 @@ Reload this checklist before list, before read, and before Atlas writes.
    refused (it stays confirmed; the operator may choose another target or
    acknowledge later). A changed target → determine visibility and
    acknowledge again. A private target with known visibility
-   (`atlas_target_visibility: private`) needs no extra step. A dry run
+   (`atlas_target_visibility: private`) needs no extra step. A confirmed
+   local-only target (`push_remote: none`) is `private`. A dry run
    (`memory_sync: off`) writes nothing and needs no acknowledgement.
 3. If `import_scope` is missing / `none` / "whole library" without named
    folders → **stop**. Refuse unbounded library export.
@@ -111,12 +117,17 @@ Reload this checklist before list, before read, and before Atlas writes.
     override `memory_sync: off` (already gated in step 9).
 14. When `compile_push: on` and the live store is reachable: compile green;
     EXTERNAL **`atlas-compile-commit-push`** to the operator-confirmed
-    `<push-remote>`. When `compile_push: off`: **do not** compile for
+    `<push-remote>`. With a confirmed `push_remote: none` (local-only
+    target), publishing is disabled: compile green, commit locally per
+    EXTERNAL `atlas-compile-commit-push` if it supports a local-only commit
+    (otherwise compile only), skip the push, and record
+    `push: skipped (push_remote: none)` on the receipt; this is not an
+    incomplete exit. When `compile_push: off`: **do not** compile for
     publication, commit, or push — leave local preview/write state as the
     receipt describes and stop.
 15. Emit import receipt: notes read, persons created/updated (or previewed),
     skips, review-queue size, `overlay:` result, tip SHA (or deferral /
-    dry-run reason).
+    dry-run reason, or `push: skipped (push_remote: none)`).
 16. **Stop.** No watcher. Continuous sync needs a new approved design.
 
 ## Outputs

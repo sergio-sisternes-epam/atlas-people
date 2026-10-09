@@ -21,6 +21,11 @@ relationship edge on the Atlas the operator chooses for person pages.
    and allowing any other. Proceed only when `atlas_id` is the
    operator-confirmed `<target-atlas-id>`, `push_remote` is filled,
    `atlas_target: confirmed`, and `memory_sync` / `compile_push` are filled.
+   `push_remote` is the confirmed remote, or `none` only for a local-only
+   Atlas with no remote when the operator confirmed `none` as part of the
+   target confirmation (writes allowed, publishing disabled). Never default
+   to `none` when the target has a remote; an unconfirmed `none` is an
+   unconfirmed target.
    No confirmation → **stop** (`incomplete: atlas target not confirmed`).
    The skill never refuses a target on policy grounds; for a shared,
    work/project, or public target add a non-blocking visibility note.
@@ -43,7 +48,8 @@ relationship edge on the Atlas the operator chooses for person pages.
    refused (it stays confirmed; the operator may choose another target or
    acknowledge later). A changed target → determine visibility and
    acknowledge again. A private target with known visibility
-   (`atlas_target_visibility: private`) needs no extra step. A dry run
+   (`atlas_target_visibility: private`) needs no extra step. A confirmed
+   local-only target (`push_remote: none`) is `private`. A dry run
    (`memory_sync: off`) writes nothing and needs no acknowledgement.
 3. Reject secret-class content (passwords, SSN-class). Redact or **stop**.
 4. Source pointers: for Apple Notes use **note id** (and folder id when
@@ -85,12 +91,18 @@ relationship edge on the Atlas the operator chooses for person pages.
     Optionally write the reciprocal edge on the other person page.
 12. Load EXTERNAL **`atlas`** path `remember` and follow compile rules.
 13. When `compile_push: on`: EXTERNAL **`atlas-compile-commit-push`** to
-    the operator-confirmed `<push-remote>` only. When `compile_push: off`:
+    the operator-confirmed `<push-remote>` only. With a confirmed
+    `push_remote: none` (local-only target), publishing is disabled:
+    compile green, commit locally per EXTERNAL `atlas-compile-commit-push`
+    if it supports a local-only commit (otherwise compile only), skip the
+    push, and record `push: skipped (push_remote: none)` on the receipt;
+    this is not an incomplete exit. When `compile_push: off`:
     **do not** publish (no compile-for-push / commit / push).
 
 ## Outputs
 
-- Pages written; compile green; tip SHA when pushed
+- Pages written; compile green; tip SHA when pushed (or
+  `push: skipped (push_remote: none)` for a confirmed local-only target)
 - Or read-only dry-run preview when `memory_sync: off`
 - Or review-queue entry for ambiguous identity
 - Or deferral `awaiting store provision`

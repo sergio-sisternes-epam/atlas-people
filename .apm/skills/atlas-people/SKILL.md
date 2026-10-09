@@ -37,7 +37,7 @@ person pages on each run:
 | --- | --- | --- |
 | `atlas_id` (target Atlas id) | operator confirmation (options from the Enter card, install config, EXTERNAL `atlas` listing, or any other Atlas the operator names) | `<target-atlas-id>` |
 | `atlas_root` (working checkout) | EXTERNAL `atlas` `resolve` of that id | `<atlas-root>` |
-| `push_remote` (only push target for the run) | operator, confirmed together with `atlas_id` | `<push-remote>` |
+| `push_remote` (only push target for the run; `none` for a confirmed local-only target) | operator, confirmed together with `atlas_id` | `<push-remote>` |
 | Transport credentials | operator environment; never in this skill | — |
 
 Rules (one target-neutral rule; the operator decides where person pages
@@ -55,7 +55,11 @@ live):
    per-target confirmation, not an allow-list. An install-config or
    Enter-card value is a suggested default, not an implicit confirmation:
    still ask the operator to confirm it before the first write. If the
-   target changes, ask and confirm again.
+   target changes, ask and confirm again. For a local-only Atlas with no
+   remote, the operator confirms `push_remote: none` as part of this target
+   confirmation; that target is valid for writes with publishing disabled
+   (see **4. Compile + push**). Never default to `push_remote: none` when
+   the target has a remote.
 3. **Never refuse a target on policy grounds.** The skill never refuses a
    target on policy grounds: a work, project, personal, shared, or another
    agent's Atlas is accepted once the operator confirms it.
@@ -70,7 +74,8 @@ live):
    the activation card as `atlas_target_visibility`:
    - `private` — visibility known to be private (the hosting service
      reports a private repository, or a local-only Atlas with no remote is
-     private). A private target with known visibility
+     private, so a confirmed local-only target with `push_remote: none` is
+     `private`). A private target with known visibility
      (`atlas_target_visibility: private`) needs no extra step.
    - `public` — the hosting service reports a public repository; not yet
      acknowledged → no write.
@@ -151,6 +156,8 @@ live):
    values into Atlas. Richer excerpts OK otherwise.
 8. **Compile green + push** via EXTERNAL `atlas-compile-commit-push` to the
    operator-confirmed `push_remote` only. No dual-push to any second remote.
+   A confirmed `push_remote: none` (local-only target) disables publishing:
+   compile still runs and the push step is skipped and recorded.
 9. **The provisioner provisions the empty store only** — when the confirmed
    target does not exist yet, the provisioner provisions it empty and the
    operator owns its content. Do not invent a fake store tip when the live
@@ -162,9 +169,13 @@ live):
 
 ## Activation card
 
-`activation_card: on`. Before any Atlas read or write, compile/push, or Notes
-import, emit this Enter card with **every field filled**. Missing required
-field → **stop**.
+`activation_card: on`. Target resolution is the only operation permitted
+before the card: EXTERNAL `atlas` `resolve` / `mount` of the selected Atlas,
+a `git ls-remote` reachability check, and the visibility lookup
+(**0. Enter** steps 2–3). It reads no person-page content. Emit this Enter
+card with **every field filled** before any person-page content is read or
+written, and before any compile/push, overlay mount, or Notes import.
+Missing required field → **stop**.
 
 ```text
 skill: atlas-people
@@ -174,7 +185,7 @@ path: query | remember | import-notes
 intent: <one line>
 atlas_id: <target-atlas-id>          # selected Atlas: confirmed target (writes) or known / operator-named Atlas (query)
 atlas_root: <atlas-root>             # filled by atlas resolve of atlas_id BEFORE emit
-push_remote: <push-remote> | none    # confirmed with the target; none for read-only query
+push_remote: <push-remote> | none    # confirmed with the target; none = read-only query, or a confirmed local-only target (writes allowed, publishing disabled)
 atlas_target: confirmed | unknown    # confirmed = operator confirmed this atlas_id for this run; required for remember / import-notes / compile-push only
 atlas_target_visibility: private | public | unknown | public-acknowledged   # public / unknown → no write until the separate acknowledgement sets public-acknowledged; query may stay unknown
 memory_sync: on | off
@@ -199,6 +210,13 @@ invocation: actor-session
   `atlas_target: unknown` → **stop** for any write. Query may still run
   read-only against a known or operator-named Atlas with
   `atlas_target: unknown` and `push_remote: none`.
+- `push_remote: none` on a write run (remember / import-notes) is valid
+  only for a local-only Atlas with no remote, and only when the operator
+  confirmed `none` as part of the target confirmation. Never default to
+  `none` when the target has a remote; offer that remote instead. With a
+  confirmed `push_remote: none`, publishing is disabled: compile still
+  runs, the push step is skipped and recorded (not an incomplete exit), and
+  `atlas_target_visibility` is `private`.
 - Omitted `atlas_target_visibility` → **`unknown`** (never `private`) until
   visibility is determined from the confirmed target's push remote /
   hosting service (Store target rule 5).
@@ -232,9 +250,15 @@ invocation: actor-session
 - Name-only auto-merge → **stop**; queue review instead.
 - Secret-class content (passwords, SSN-class) in remember/import payload →
   **stop** / redact; do not write.
+- `push_remote: none` on a write run that the operator did not confirm as
+  part of the target confirmation, or on a target that has a remote →
+  treat the target as unconfirmed → **stop**
+  (`incomplete: atlas target not confirmed`).
 - Exit incomplete if remember/import with `memory_sync: on` but no Atlas
   write, or if compile fails, or if `compile_push: on` and push skipped
-  while the live store is reachable.
+  while the live store is reachable. Exception: with a confirmed
+  `push_remote: none` (local-only target) the push step is skipped and
+  recorded, not an incomplete exit.
 - If the confirmed target store is not yet provisioned, do not invent a tip;
   record deferral **awaiting store provision** (the provisioner has not yet
   provisioned the empty store) and still complete package/docs work.
@@ -269,7 +293,10 @@ it — never a cwd-relative reinvented copy.
    Atlases the EXTERNAL `atlas` skill can list or resolve) and allow any
    other Atlas the operator names. Set `atlas_id` and `push_remote` from the
    operator's answer and `atlas_target: confirmed` only after the operator
-   explicitly confirms that specific target. If the target is shared, a
+   explicitly confirms that specific target. For a local-only Atlas with no
+   remote, the operator confirms `push_remote: none` as part of that
+   confirmation (writes allowed, publishing disabled; never default to
+   `none` when the target has a remote). If the target is shared, a
    work or project Atlas, or a public repository branch, add a non-blocking
    note that person pages will be visible to its readers. No confirmation →
    `atlas_target: unknown` → **stop** before writing
@@ -293,7 +320,10 @@ it — never a cwd-relative reinvented copy.
    `mount` / `resolve` for the selected `<target-atlas-id>` (the confirmed
    target for remember, import-notes, and compile/push; the known or
    operator-named Atlas for query) and set `atlas_root` only from that
-   result. Do **not** require `atlas_root` to be pre-filled by the
+   result. This target resolution (`atlas resolve` / mount, `git ls-remote`,
+   and the visibility lookup in step 2) is the only operation permitted
+   before the card; it reads no person-page content. Do **not** require
+   `atlas_root` to be pre-filled by the
    operator. If mount / `git ls-remote` fails because the empty store is
    not yet provisioned → **stop** with deferral reason
    `awaiting store provision` (query may still explain the contract;
@@ -301,7 +331,9 @@ it — never a cwd-relative reinvented copy.
    different `atlas_id` than the one selected → **stop** and ask the
    operator to confirm (writes) or name (query) the Atlas again.
 4. Emit the activation card with **every field filled**, including the
-   resolved `atlas_root`. Missing resolve → incomplete card → **stop**.
+   resolved `atlas_root`, before any person-page content is read or
+   written, and before any compile/push or overlay mount. Missing resolve →
+   incomplete card → **stop**.
 5. Load the matching LOCAL path module under `references/paths/` and follow
    it. **Enter does not mount the Atlas overlay.** For remember and
    import-notes with `memory_sync: on` (a real write run), the path module
@@ -455,13 +487,22 @@ After Atlas writes, when `compile_push: on` and the live store is reachable:
    ordinary pushes; writing person pages to any Atlas other than the one
    the operator confirmed for this run.
 
+**Local-only target (`push_remote: none`).** When the operator confirmed
+`push_remote: none` for a local-only Atlas with no remote, publishing is
+disabled. Step 1 still runs (compile green). In step 2, commit locally per
+EXTERNAL `atlas-compile-commit-push` if it supports a local-only commit;
+otherwise compile only. Skip step 3 and record
+`push: skipped (push_remote: none)` on the receipt; this is not an
+incomplete exit.
+
 Exit incomplete if compile fails or push is skipped while `compile_push: on`
-and the store is reachable. If the store is not provisioned, record the
-deferral and do not claim a tip.
+and the store is reachable, unless the confirmed `push_remote` is `none`.
+If the store is not provisioned, record the deferral and do not claim a
+tip.
 
 ## Exit checklist
 
-- [ ] Activation card emitted (every field filled; `atlas_target: confirmed` for writes; may stay `unknown` for read-only query)
+- [ ] Activation card emitted after target resolution only (`atlas resolve` / mount, `git ls-remote`, visibility lookup) and before any person-page content is read or written, any compile/push, and any overlay mount (every field filled; `atlas_target: confirmed` for writes; may stay `unknown` for read-only query)
 - [ ] Operator asked which Atlas the person pages should be stored in (known or bound Atlases offered; any other allowed)
 - [ ] Target explicitly confirmed by the operator before the first write; re-confirmed if it changed
 - [ ] No target refused on policy grounds; privacy note given as advice only when the target is shared, work/project, or public
@@ -474,6 +515,7 @@ deferral and do not claim a tip.
 - [ ] Notes id required; no title-only Notes targeting
 - [ ] No secret-class content; 1Password named only as the vault
 - [ ] Compile green + push to the confirmed `<push-remote>` when writes landed and store is live (EXTERNAL ccp)
+- [ ] Or, with a confirmed `push_remote: none` (local-only target), compile green, local commit only if EXTERNAL ccp supports it, push skipped and recorded on the receipt (not an incomplete exit)
 - [ ] Or explicit deferral `awaiting store provision` when store missing
 - [ ] No continuous sync; no LinkedIn in v0
 - [ ] No live host, remote, checkout path, or credential path echoed into skill text

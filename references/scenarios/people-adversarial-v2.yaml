@@ -173,3 +173,16 @@ smokes:
       # environment; this package ships neither.
       if [ -z "${PEOPLE_PUSH_REMOTE:-}" ]; then echo "deferred: PEOPLE_PUSH_REMOTE unset (operator-supplied)"; exit 0; fi
       git ls-remote "$PEOPLE_PUSH_REMOTE" HEAD || { echo "deferred: awaiting store provision or unreachable"; exit 0; }
+  - id: card-after-target-resolution-only
+    source: review-feedback-card-ordering
+    expect: target resolution (atlas resolve / mount, git ls-remote, visibility lookup) is the only operation permitted before the activation card; the card comes before any person-page read or write, compile/push, or overlay mount
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F 'Target resolution is the only operation permitted before the card: EXTERNAL `atlas` `resolve` / `mount` of the selected Atlas, a `git ls-remote` reachability check, and the visibility lookup' >/dev/null
+      flat SKILL.md | grep -F 'Emit this Enter card with **every field filled** before any person-page content is read or written, and before any compile/push, overlay mount, or Notes import.' >/dev/null
+      enter="$(flat SKILL.md | sed -n 's/.*### 0\. Enter\(.*\)### 1\. Mount (all paths.*/\1/p')"
+      test -n "$enter" || { echo "Enter section not found"; exit 1; }
+      printf '%s' "$enter" | grep -F 'is the only operation permitted before the card; it reads no person-page content' >/dev/null
+      printf '%s' "$enter" | grep -F 'before any person-page content is read or written, and before any compile/push or overlay mount' >/dev/null
+      rg -n -F -- '- [ ] Activation card emitted after target resolution only' SKILL.md >/dev/null
+      ! flat SKILL.md | grep -F 'Before any Atlas read or write, compile/push, or Notes import, emit this Enter card' >/dev/null
