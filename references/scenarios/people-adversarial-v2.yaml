@@ -118,7 +118,7 @@ smokes:
     source: tool-neutral-notes-and-secrets
     expect: no specific notes app, reader tool, or vault tool is mandatory; the operator-chosen notes source is readable and secret location wording is neutral
     check: |
-      files=(SKILL.md README.md apm.yml references/paths references/person-page-schema.md contributions .apm/)
+      files=(SKILL.md README.md apm.yml references/paths references/person-page-schema.md contributions .apm/ scripts)
       if rg -n -i 'EXTERNAL.{0,40}apple.?notes|apple.?notes.{0,40}EXTERNAL|apple-notes.*compose|compose.*apple-notes|\bop (read|item)\b|op:/[/]|Mac \+ Automation' "${files[@]}"; then exit 1; fi
       if rg -n -i 'Apple Notes|1Password' "${files[@]}" | python3 -c 'import re, sys
       mentions = re.compile(r"apple.?notes|1password", re.I)
@@ -142,6 +142,8 @@ smokes:
       rg -n -F '| recall | `references/paths/recall.md` |' SKILL.md
       rg -n -F '| query | (deprecated alias) | Routes to recall; same module and rules |' SKILL.md
       rg -n -F 'path: recall' references/paths/recall.md
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F 'Normalize a deprecated `path: query` (or a query request) to `recall` before the activation card is validated and emitted; the card then shows `path: recall`' >/dev/null
   - id: import-scope-required
     source: pin-bounded-import
     expect: import-notes refuses whole-library default without explicit folder scope

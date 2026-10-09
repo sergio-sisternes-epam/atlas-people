@@ -287,7 +287,10 @@ it — never a cwd-relative reinvented copy.
 
 ### 0. Enter
 
-1. Resolve `path`: `recall` | `remember` | `import-notes`.
+1. Resolve `path`: `recall` | `remember` | `import-notes`. Normalize a
+   deprecated `path: query` (or a query request) to `recall` before the
+   activation card is validated and emitted; the card then shows
+   `path: recall`.
 2. **Ask for the target before the first write.** For remember,
    import-notes, or any compile/push, ask the operator which Atlas the
    person pages should be stored in. Offer any known or bound Atlas (for
