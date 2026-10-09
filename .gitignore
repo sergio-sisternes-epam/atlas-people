@@ -1,0 +1,2 @@
+# Atlas CLI checkouts used by CI smokes.
+.ci-atlas*/

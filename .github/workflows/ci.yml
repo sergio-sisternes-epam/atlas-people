@@ -21,21 +21,73 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install APM and PyYAML
-        run: python3 -m pip install apm-cli pyyaml
+      # jsonschema: Atlas CLI needs it for SCHEMA 2.0 smokes (pin matches Atlas scripts/requirements-ci.txt).
+      - name: Install APM, PyYAML, and jsonschema
+        run: python3 -m pip install apm-cli pyyaml "jsonschema==4.25.1"
       - name: Install ripgrep
         run: |
           sudo apt-get update
           sudo apt-get install -y ripgrep
+      # The consumer project lives at a known path so the overlay smoke can run
+      # again from the installed package (apm_modules/_local/<name>/), not
+      # only from the source checkout.
       - name: Consumer install and compile
+        id: consumer
         run: |
-          consumer="$(mktemp -d)"
+          consumer="$RUNNER_TEMP/atlas-people-consumer"
+          rm -rf "$consumer"
+          mkdir -p "$consumer"
           cd "$consumer"
           apm install "$GITHUB_WORKSPACE" --target agent-skills,cursor
           apm compile --validate --target agent-skills,cursor
           test -f .agents/skills/atlas-people/SKILL.md
+          shopt -s nullglob
+          overlays=(apm_modules/_local/*/contributions/atlas-people/SCHEMA.overlay.json)
+          [ "${#overlays[@]}" -eq 1 ] || { echo "expected one installed overlay, found ${#overlays[@]}" >&2; exit 1; }
+          pkg_root="$consumer/${overlays[0]%/contributions/atlas-people/SCHEMA.overlay.json}"
+          test -f "$pkg_root/contributions/atlas-people/SCHEMA.overlay.json"
+          test -f "$pkg_root/contributions/atlas-people/templates/person.md"
+          test -f "$pkg_root/contributions/atlas-people/README.md"
+          echo "pkg_root=$pkg_root" >> "$GITHUB_OUTPUT"
+      # Atlas CLI checkouts live under the workspace (actions/checkout needs
+      # that); .gitignore lists .ci-atlas*/ so rg-based scenario checks and the
+      # hygiene scan skip them.
+      - name: Checkout Atlas CLI v0.13.1
+        uses: actions/checkout@v5
+        with:
+          repository: sergio-sisternes-epam/atlas
+          ref: v0.13.1
+          path: .ci-atlas-v0.13.1
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+      - name: Checkout Atlas CLI v0.13.0
+        uses: actions/checkout@v5
+        with:
+          repository: sergio-sisternes-epam/atlas
+          ref: v0.13.0
+          path: .ci-atlas-v0.13.0
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+      - name: Atlas overlay smoke (source checkout)
+        env:
+          ATLAS_CLIS: >-
+            ${{ github.workspace }}/.ci-atlas-v0.13.1/scripts/atlas.py
+            ${{ github.workspace }}/.ci-atlas-v0.13.0/scripts/atlas.py
+        run: bash scripts/overlay-smoke.sh
+      - name: Atlas overlay smoke (consumer-installed package)
+        env:
+          OVERLAY_PKG_ROOT: ${{ steps.consumer.outputs.pkg_root }}
+          ATLAS_CLIS: >-
+            ${{ github.workspace }}/.ci-atlas-v0.13.1/scripts/atlas.py
+            ${{ github.workspace }}/.ci-atlas-v0.13.0/scripts/atlas.py
+        run: |
+          test -n "$OVERLAY_PKG_ROOT"
+          bash scripts/overlay-smoke.sh
       - name: Run scenario smokes
         env:
+          ATLAS_CLI: ${{ github.workspace }}/.ci-atlas-v0.13.1/scripts/atlas.py
           # Optional repository variable; the smoke records a deferral when unset.
           PEOPLE_FORBIDDEN_SLUGS: ${{ vars.PEOPLE_FORBIDDEN_SLUGS }}
         run: bash scripts/run-scenarios.sh

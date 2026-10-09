@@ -6,12 +6,65 @@ supersedes: people-adversarial-v1 (work_id 2026-10-05-people-atlas; never releas
 adversarial: true
 # Run every check from the package root (bash scripts/run-scenarios.sh).
 smokes:
-  - id: no-nest-other-atlas
-    source: pin-ownership
-    expect: skill and process docs forbid writing people pages into any non-people Atlas (role language)
+  # Prose checks flatten each file (newlines and runs of spaces → one space)
+  # so wrapped sentences still match.
+  - id: ask-store-target
+    source: owner-design-target-neutral
+    expect: before the first write the skill asks which Atlas to store person pages in, offering known or bound Atlases and allowing any other
     check: |
-      rg -n 'non-people Atlas' SKILL.md README.md references/
-      rg -n 'Never write|Forbidden write-homes|never write people pages|Never nest' SKILL.md README.md
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      for f in SKILL.md README.md references/paths/remember.md references/paths/import-notes.md; do
+        flat "$f" | grep -F 'which Atlas the person pages should be stored in' >/dev/null || { echo "missing target question: $f"; exit 1; }
+      done
+      flat SKILL.md | grep -F 'Before the first write (remember, import-notes, or compile/push) in a run, ask the operator' >/dev/null
+      flat SKILL.md | grep -F 'Offer any known or bound Atlas as an option' >/dev/null
+      flat SKILL.md | grep -F 'allow any other Atlas the operator names' >/dev/null
+      flat README.md | grep -F 'accepting any other Atlas the operator names' >/dev/null
+  - id: per-target-confirmation
+    source: owner-design-target-neutral
+    expect: writes happen only after explicit per-target confirmation (atlas_target confirmed); install-config values are suggestions, a changed target is re-confirmed, and no confirmation stops before writing
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F '`atlas_target: confirmed` means the operator explicitly confirmed this `atlas_id` (and its `push_remote`) as the target for this run' >/dev/null
+      flat SKILL.md | grep -F 'per-target confirmation, not an allow-list' >/dev/null
+      flat SKILL.md | grep -F 'not an implicit confirmation' >/dev/null
+      flat SKILL.md | grep -F 'If the target changes, ask and confirm again' >/dev/null
+      flat SKILL.md | grep -F '`atlas_target: unknown` → **stop** before writing' >/dev/null
+      flat README.md | grep -F 'per-target confirmation, not an allow-list' >/dev/null
+      rg -n 'atlas_target: confirmed' SKILL.md README.md references/paths/remember.md references/paths/import-notes.md
+  - id: query-resolves-selected-atlas
+    source: review-feedback-query-resolve
+    expect: Enter resolves the selected Atlas (operator-named or known Atlas for query, confirmed target for writes); write confirmation is required only for remember, import-notes, and compile-push, and query stays read-only with atlas_target unknown
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F '`mount` / `resolve` for the selected `<target-atlas-id>` (the confirmed target for remember, import-notes, and compile/push; the known or operator-named Atlas for query)' >/dev/null
+      flat SKILL.md | grep -F 'required for remember / import-notes / compile-push only' >/dev/null
+      flat SKILL.md | grep -F 'Query with `atlas_target: unknown` → read-only' >/dev/null
+      flat references/paths/query.md | grep -F '`atlas_target` may be `unknown`' >/dev/null
+      ! flat SKILL.md | grep -F '`resolve` for the confirmed `<target-atlas-id>` and set' >/dev/null
+  - id: accept-confirmed-work-atlas
+    source: owner-design-target-neutral
+    expect: a work, project, personal, shared, or another agent's Atlas is accepted once the operator confirms it
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      for f in SKILL.md README.md; do
+        flat "$f" | grep -F "a work, project, personal, shared, or another agent's Atlas is accepted once the operator confirms it" >/dev/null || { echo "missing acceptance rule: $f"; exit 1; }
+      done
+  - id: no-policy-refusal
+    source: owner-design-target-neutral
+    expect: the skill never refuses a target on policy grounds; privacy notes about visibility are advice only and never block
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      for f in SKILL.md README.md references/paths/remember.md references/paths/import-notes.md; do
+        flat "$f" | grep -F 'never refuses a target on policy grounds' >/dev/null || { echo "missing no-refusal rule: $f"; exit 1; }
+      done
+      flat SKILL.md | grep -F 'This advice never blocks a write' >/dev/null
+      flat README.md | grep -F 'advice only, never a block' >/dev/null
+  - id: no-target-forbid-wording
+    source: owner-design-target-neutral
+    expect: wording that forbids or forces a target Atlas, or the old placeholder and stop string, never returns to package text (CHANGELOG history and this scenario directory are excluded)
+    check: |
+      ! rg -n -i --hidden -e '[F]orbidden write-homes' -e 'non-people [A]tlas' -e '[N]ever nest' -e '[S]ole runtime store' -e '[s]eparately bound' -e 'people-atlas-[i]d' -e 'missing people store [b]inding' -e 'never the people [w]rite-home' SKILL.md README.md references/paths references/person-page-schema.md apm.yml atlas-mesh.json .apm/
   - id: stable-person-id-not-cncontact
     source: public-cncontact-identity-note
     expect: person primary id is Atlas-owned; CNContact ids only as optional source pointers
@@ -69,11 +122,17 @@ smokes:
       rg -n 'Refuse unbounded|folder scope required|import_scope.*none' SKILL.md references/paths/import-notes.md
   - id: package-shape
     source: evaluation-plan
-    expect: root SKILL.md named atlas-people; hybrid .apm copy at the matching path; apm.yml name matches and version is SemVer-shaped
+    expect: root SKILL.md named atlas-people; hybrid .apm copy at the matching path; apm.yml name matches and version is SemVer-shaped; Atlas overlay files and scripts present
     check: |
       test -f SKILL.md
       test -f .apm/skills/atlas-people/SKILL.md
       test ! -e .apm/skills/people
+      test -f contributions/atlas-people/SCHEMA.overlay.json
+      test -f contributions/atlas-people/templates/person.md
+      test -f contributions/atlas-people/README.md
+      test -f scripts/run-scenarios.sh
+      test -f scripts/overlay-smoke.sh
+      test -f scripts/public-hygiene-scan.sh
       rg -n '^name: atlas-people$' SKILL.md
       rg -n '^name: atlas-people$' apm.yml
       rg -n '^version: "[0-9]+\.[0-9]+\.[0-9]+"$' apm.yml
@@ -100,17 +159,30 @@ smokes:
       ! rg -n --hidden -g '!.git/' -e 'council settl[e]' -e 'han[d]-council' .
   - id: atlas-mesh-subject-vs-runtime
     source: evaluation-plan
-    expect: package atlas-mesh.json declares this repository's atlas branch as the Autogenesis subject only; runtime people store is operator-supplied
+    expect: package atlas-mesh.json declares this repository's atlas branch as the Autogenesis subject only; the Atlas for person pages is operator-confirmed per run and not declared there
     check: |
       python3 -c 'import json; d=json.load(open("atlas-mesh.json")); s=d["stores"]; assert len(s)==1 and s[0]["role"]=="autogenesis-subject" and s[0]["id"]=="github.com/sergio-sisternes-epam/atlas-people" and s[0]["ref"]=="atlas" and s[0]["path"]==".atlas/github.com/sergio-sisternes-epam/atlas-people", s'
-      rg -n 'operator-supplied' atlas-mesh.json SKILL.md README.md
+      rg -n 'operator-confirmed' atlas-mesh.json SKILL.md README.md
       rg -n "this repository's .atlas. branch" SKILL.md
       rg -n "this repository's .atlas. branch" README.md
   - id: people-store-live-or-deferred
     source: evaluation-plan
-    expect: live git ls-remote smoke green against the operator-supplied remote, or explicit deferral when unset / not provisioned
+    expect: live git ls-remote smoke green against the operator-confirmed remote, or explicit deferral when unset / not provisioned
     check: |
       # Operator supplies PEOPLE_PUSH_REMOTE (and any transport settings) in the
       # environment; this package ships neither.
       if [ -z "${PEOPLE_PUSH_REMOTE:-}" ]; then echo "deferred: PEOPLE_PUSH_REMOTE unset (operator-supplied)"; exit 0; fi
       git ls-remote "$PEOPLE_PUSH_REMOTE" HEAD || { echo "deferred: awaiting store provision or unreachable"; exit 0; }
+  - id: card-after-target-resolution-only
+    source: review-feedback-card-ordering
+    expect: target resolution (atlas resolve / mount, git ls-remote, visibility lookup) is the only operation permitted before the activation card; the card comes before any person-page read or write, compile/push, or overlay mount
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F 'Target resolution is the only operation permitted before the card: EXTERNAL `atlas` `resolve` / `mount` of the selected Atlas, a `git ls-remote` reachability check, and the visibility lookup' >/dev/null
+      flat SKILL.md | grep -F 'Emit this Enter card with **every field filled** before any person-page content is read or written, and before any compile/push, overlay mount, or Notes import.' >/dev/null
+      enter="$(flat SKILL.md | sed -n 's/.*### 0\. Enter\(.*\)### 1\. Mount (all paths.*/\1/p')"
+      test -n "$enter" || { echo "Enter section not found"; exit 1; }
+      printf '%s' "$enter" | grep -F 'is the only operation permitted before the card; it reads no person-page content' >/dev/null
+      printf '%s' "$enter" | grep -F 'before any person-page content is read or written, and before any compile/push or overlay mount' >/dev/null
+      rg -n -F -- '- [ ] Activation card emitted after target resolution only' SKILL.md >/dev/null
+      ! flat SKILL.md | grep -F 'Before any Atlas read or write, compile/push, or Notes import, emit this Enter card' >/dev/null

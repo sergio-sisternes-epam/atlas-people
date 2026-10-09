@@ -1,5 +1,93 @@
 # Changelog
 
+## 0.1.3 — 2026-10-09
+
+Target-neutral storage for person pages, and an Atlas overlay that declares
+the `person` type.
+
+- Removed the package policy that forced person pages into a separately
+  bound people store and forbade writing them to a work, project, personal,
+  or other agent's Atlas. The skill no longer forbids or forces any Atlas
+  target.
+- Before the first write (remember, import-notes, or compile/push) in a run,
+  the skill now asks the operator which Atlas the person pages should be
+  stored in, offers any known or bound Atlas (Enter card, install config, or
+  Atlases the EXTERNAL `atlas` skill can list or resolve), and accepts any
+  other Atlas the operator names.
+- Writes happen only after explicit per-target confirmation:
+  `atlas_target: confirmed` now means the operator confirmed that specific
+  `atlas_id` (and its `push_remote`) for this run. Install-config and
+  Enter-card values are suggested defaults, not confirmations; a changed
+  target is confirmed again. The skill never refuses a target on policy
+  grounds.
+- Privacy notes about visibility on shared, work/project, or public targets
+  are advisory and never block.
+- New separate public-visibility acknowledgement: after the target is
+  confirmed, the skill determines its visibility from the push remote /
+  hosting service (failed or ambiguous lookups are `unknown`, never assumed
+  private) and, for a public or unknown target, asks "Person pages will be
+  publicly readable and can't be fully removed (history and forks keep
+  them). Continue?" before the overlay mount and the first write. Consent is
+  recorded as `atlas_target_visibility: public-acknowledged`;
+  `atlas_target: confirmed` alone never counts. Declining stops with no
+  write (`incomplete: public target not acknowledged`) without refusing the
+  target. Private targets with known visibility and query are unaffected.
+  New scenario file `people-public-ack-v1.yaml`.
+- Stop string renamed from `incomplete: missing people store binding` to
+  `incomplete: atlas target not confirmed`; placeholder renamed from
+  `<people-atlas-id>` to `<target-atlas-id>`.
+- Scenarios: dropped the smokes asserting the old forbid rule; added smokes
+  for the target question, per-target confirmation, acceptance of a
+  confirmed work/project Atlas, no policy refusal, non-blocking privacy
+  advice, and a negative smoke against the old forbid wording.
+- New Atlas overlay `contributions/atlas-people/` (`SCHEMA.overlay.json`,
+  `templates/person.md`, `README.md`) declaring one new type, `person`. It
+  carries contract keys only (`contribution_id`, `templates`): no claimed
+  folders, no extension slot, no core type redeclared. Atlas checks 8
+  required keys (`type`, `title`, `created`, `updated`, `sensitivity`,
+  `person_contract`, `person_id`, `names`); the skill still requires
+  `origin` and `aliases` and the rest of the person-page schema.
+- New person pages use `type: person`. Pages written by v0.1.2
+  (`type: document` + `person_contract: v1`) stay valid; query recognises
+  both by `person_contract: v1`, and remember retypes a legacy page to
+  `person` only on an Atlas where the overlay is mounted.
+- SKILL.md gains a **Mount the Atlas overlay** step: `apm install` never
+  mounts the overlay, and Enter does not mount it either; the remember or
+  import-notes path module runs the mount once, after the path module's
+  gates pass and immediately before the first write, asking the operator
+  and mounting only on the confirmed target with
+  `atlas.py schema install <pkg-root>/contributions/atlas-people --root
+  <atlas-root>` and compile. The mount runs only on a real write run
+  (remember or import-notes with `memory_sync: on`); query, previews, and
+  dry runs skip it, so a dry run never changes `schema.d/` or
+  `templates/`. Declining is advisory, not a block. Upgrade re-runs the
+  mount from the new package root as `schema uninstall atlas-people`, then
+  `schema install <new-pkg-root>/contributions/atlas-people`, then
+  compile: a plain re-install (with or without `--force`) neither refreshes
+  `templates/person.md` nor keeps it on the receipt, so a later uninstall
+  would leave it behind. Removal is `schema uninstall atlas-people` and
+  compile; a `templates/person.md` left over from an earlier plain
+  re-install is an unused template the operator may delete. The package ref
+  is recorded on the exit receipt.
+- Query resolves the selected Atlas (a known or operator-named Atlas) and
+  runs read-only with `atlas_target: unknown`; write confirmation is
+  required only for remember, import-notes, and compile/push.
+- Tested with Atlas 0.13.0 and 0.13.1 on SCHEMA 1.0 and 2.0 stores. New
+  `scripts/overlay-smoke.sh` (static contract check plus install, compile,
+  missing-key, upgrade by uninstall and install, and uninstall runs that
+  check `templates/person.md` is removed; a separate throwaway store pins
+  the Atlas plain re-install behaviour) and scenario file
+  `people-overlay-v1.yaml`.
+- CI installs `jsonschema==4.25.1` (needed by the Atlas CLI for SCHEMA 2.0
+  stores; the pin matches Atlas `scripts/requirements-ci.txt`), checks out
+  the Atlas CLI at v0.13.1 and v0.13.0, and runs the overlay smoke against
+  both.
+- The overlay ships in the tagged source package
+  (`apm install sergio-sisternes-epam/atlas-people#vX.Y.Z`), not in the
+  release plugin bundle, which carries the skill only; the mount step stops
+  when the package root lacks it. CI also runs the overlay smoke from a
+  consumer-installed package (`OVERLAY_PKG_ROOT`).
+
 ## 0.1.2 — 2026-10-09
 
 Standalone public package `atlas-people`.

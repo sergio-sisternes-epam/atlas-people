@@ -1,0 +1,176 @@
+id: people-overlay-v1
+packages:
+  - atlas-people
+work_id: 2026-10-09-people-overlay
+adversarial: true
+# Run every check from the package root (bash scripts/run-scenarios.sh).
+# The live overlay smoke needs ATLAS_CLI (an Atlas checkout's
+# scripts/atlas.py) and records a deferral when it is unset.
+smokes:
+  - id: overlay-files-present
+    source: atlas-schema-path-3a
+    expect: the package ships contributions/atlas-people with SCHEMA.overlay.json, templates/person.md, and a README
+    check: |
+      test -f contributions/atlas-people/SCHEMA.overlay.json
+      test -f contributions/atlas-people/templates/person.md
+      test -f contributions/atlas-people/README.md
+      python3 -c 'import json; json.load(open("contributions/atlas-people/SCHEMA.overlay.json"))'
+      rg -n '^type: person$' contributions/atlas-people/templates/person.md
+      rg -n '^person_contract: v1$' contributions/atlas-people/templates/person.md
+  - id: overlay-root-keys-contract-only
+    source: atlas-schema-root-keys
+    expect: overlay root keys are a subset of contribution_id and templates; contribution_id is atlas-people; no claimed folders
+    check: |
+      python3 - <<'PY'
+      import json
+      o = json.load(open("contributions/atlas-people/SCHEMA.overlay.json"))
+      extra = set(o) - {"contribution_id", "templates"}
+      assert not extra, f"extra root keys: {sorted(extra)}"
+      assert o["contribution_id"] == "atlas-people", o["contribution_id"]
+      assert "claimed_folders" not in o
+      PY
+  - id: overlay-no-extension-slot
+    source: atlas-schema-extension-slot
+    expect: the overlay carries no atlas_people extension slot, so older Atlas readers compile SCHEMA 2.0 stores that hold it
+    check: |
+      python3 -c 'import json; o=json.load(open("contributions/atlas-people/SCHEMA.overlay.json")); assert "atlas_people" not in o, o'
+  - id: overlay-no-core-redeclare
+    source: atlas-schema-hard-rule-3
+    expect: the overlay declares only the new type person, redeclares no core type, and stays within 8 required frontmatter keys
+    check: |
+      python3 - <<'PY'
+      import json
+      o = json.load(open("contributions/atlas-people/SCHEMA.overlay.json"))
+      types = o["templates"]["by_type"]
+      core = {"work", "document", "experience", "decision", "lesson", "recipe",
+              "protostar", "gist", "frame", "memory", "schema"}
+      assert set(types) == {"person"}, sorted(types)
+      assert not set(types) & core
+      req = types["person"]["frontmatter"]["required"]
+      assert len(req) <= 8, req
+      PY
+  - id: overlay-live-smoke
+    source: atlas-schema-test-both-stores
+    expect: with ATLAS_CLI set, the overlay installs, compiles, flags a missing person_id, upgrades by uninstall and install (receipt lists templates/person.md again), and uninstalls (overlay and template gone, person pages kept) on SCHEMA 1.0 and 2.0 stores, and pins the Atlas plain re-install receipt behaviour; otherwise a deferral is recorded
+    check: |
+      bash scripts/overlay-smoke.sh
+  - id: skill-mount-overlay-commands
+    source: atlas-schema-path-3a
+    expect: SKILL.md documents schema install from contributions/atlas-people, schema uninstall atlas-people, and an upgrade that re-runs the mount as uninstall then install from the new package root (no plain re-install)
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F 'schema install <pkg-root>/contributions/atlas-people --root <atlas-root>' >/dev/null
+      flat SKILL.md | grep -F 'schema uninstall atlas-people --root <atlas-root>' >/dev/null
+      flat SKILL.md | grep -F 'apm_modules/sergio-sisternes-epam/atlas-people/' >/dev/null
+      flat SKILL.md | grep -F 'apm.lock.yaml' >/dev/null
+      flat SKILL.md | grep -F 'Overlay mount / upgrade / remove | **EXTERNAL** (`atlas` path `schema`)' >/dev/null
+      for f in SKILL.md README.md contributions/atlas-people/README.md; do
+        flat "$f" | grep -F 'schema install <new-pkg-root>/contributions/atlas-people' >/dev/null \
+          || flat "$f" | grep -F 'schema install \ <new-pkg-root>/contributions/atlas-people' >/dev/null \
+          || { echo "missing upgrade install from new package root: $f"; exit 1; }
+        flat "$f" | grep -F 'templates/person.md' >/dev/null || { echo "missing template note: $f"; exit 1; }
+      done
+      flat SKILL.md | grep -F 'uninstall, then install, then compile' >/dev/null
+      flat SKILL.md | grep -F 'neither refreshes that template nor keeps it on the receipt' >/dev/null
+      flat SKILL.md | grep -F 'it is an unused template' >/dev/null || flat SKILL.md | grep -F 'It is an unused template' >/dev/null
+      flat CHANGELOG.md | grep -F 'then `schema install <new-pkg-root>/contributions/atlas-people`' >/dev/null
+      ! flat SKILL.md | grep -F 're-run from the new package root (with `--force`' >/dev/null
+      ! flat SKILL.md | grep -F 'add `--force` when the overlay' >/dev/null
+  - id: skill-mount-confirmed-target-only
+    source: owner-design-target-neutral
+    expect: SKILL.md mounts the overlay only on the operator-confirmed target, asks first, and treats a declined mount as advisory
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F "it never mounts the overlay into any Atlas" >/dev/null
+      flat SKILL.md | grep -F 'Mount only on the Atlas the operator confirmed as the target for this run' >/dev/null
+      flat SKILL.md | grep -F 'Never mount on an Atlas the operator did not name and confirm' >/dev/null
+      flat SKILL.md | grep -F 'This is advisory, never a block' >/dev/null
+  - id: skill-mount-skipped-on-dry-run
+    source: review-feedback-dry-run-mount
+    expect: the overlay mount runs only on a real write run (memory_sync on); query, previews, and dry runs skip it so no schema.d/ or templates/ mutation happens
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat SKILL.md | grep -F '**Skip the mount** for query and for any preview or dry run (`memory_sync: off`): no `schema install`, no compile, no change to `schema.d/` or `templates/`' >/dev/null
+      flat SKILL.md | grep -F '**Skip this step** for query and for previews or dry runs (`memory_sync: off`)' >/dev/null
+      flat SKILL.md | grep -F '### 3. Mount the Atlas overlay (confirmed target, write runs only)' >/dev/null
+      for f in references/paths/remember.md references/paths/import-notes.md; do
+        flat "$f" | grep -F 'do not** mount the Atlas overlay (no `schema install`, no change to `schema.d/` or `templates/`)' >/dev/null || { echo "missing dry-run mount skip: $f"; exit 1; }
+      done
+      flat references/paths/query.md | grep -F 'Do **not** mount the Atlas overlay' >/dev/null
+  - id: skill-mount-after-path-gates
+    source: review-feedback-mount-timing
+    expect: Enter never mounts the overlay; the remember and import-notes path modules each invoke the mount exactly once, after the path module's gates and before the first write, so a rejected request never changes schema.d/ or templates/
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      enter="$(flat SKILL.md | sed -n 's/.*### 0\. Enter\(.*\)### 1\. Mount (all paths.*/\1/p')"
+      test -n "$enter" || { echo "Enter section not found"; exit 1; }
+      printf '%s' "$enter" | grep -F 'Load the matching LOCAL path module' >/dev/null
+      printf '%s' "$enter" | grep -F '**Enter does not mount the Atlas overlay.**' >/dev/null
+      printf '%s' "$enter" | grep -F 'exactly once, after the path module'"'"'s gates pass and immediately before the first write' >/dev/null
+      if printf '%s' "$enter" | grep -E 'run \*\*[0-9]\. Mount the Atlas overlay\*\* on the confirmed target' >/dev/null; then echo "Enter still mounts the overlay"; exit 1; fi
+      flat SKILL.md | grep -F 'It is never run from **0. Enter**' >/dev/null
+      flat SKILL.md | grep -F 'invokes it exactly once per run, after the path module'"'"'s gates pass' >/dev/null
+      flat SKILL.md | grep -F 'and immediately before the first write (person page, edge, or review-queue entry)' >/dev/null
+      flat SKILL.md | grep -F 'never mounted from Enter; mounted at most once, by the remember / import-notes path module after its gates passed and immediately before the first write' >/dev/null
+      if flat SKILL.md | grep -F 'run after target confirmation and resolve (**0. Enter**)' >/dev/null; then echo "mount still timed from Enter"; exit 1; fi
+      check_order() {
+        f="$1"; shift
+        n="$(grep -c -F 'Mount the Atlas overlay**' "$f")"
+        [ "$n" -eq 1 ] || { echo "$f: expected exactly one mount invocation, got $n"; exit 1; }
+        mount_line="$(grep -n -F 'Mount the overlay (once, before the first write).' "$f" | cut -d: -f1)"
+        [ -n "$mount_line" ] || { echo "$f: mount step missing"; exit 1; }
+        for gate in "$@"; do
+          gl="$(grep -n -F -- "$gate" "$f" | head -1 | cut -d: -f1)"
+          [ -n "$gl" ] && [ "$gl" -lt "$mount_line" ] || { echo "$f: gate after mount or missing: $gate"; exit 1; }
+        done
+        for w in 'Write/update'; do
+          wl="$(grep -n -F -- "$w" "$f" | head -1 | cut -d: -f1)"
+          [ -n "$wl" ] && [ "$wl" -gt "$mount_line" ] || { echo "$f: first write not after mount"; exit 1; }
+        done
+      }
+      check_order references/paths/remember.md \
+        'Reject secret-class content' 'Title-only → **stop**' '**Dry-run gate' \
+        'awaiting store provision' '**do not auto-merge**'
+      check_order references/paths/import-notes.md \
+        'whole library' 'Mac + Automation approval' 'require operator confirm (I4)' \
+        'Redact secret-class' '**Dry-run gate' 'awaiting store provision' \
+        'Never auto-merge on name alone'
+      for f in references/paths/remember.md references/paths/import-notes.md; do
+        flat "$f" | grep -F 'This is the only place this path mounts: a request stopped by any earlier step never mounts' >/dev/null || { echo "missing single-mount wording: $f"; exit 1; }
+      done
+  - id: person-type-and-legacy
+    source: owner-design-person-type
+    expect: new person pages use type person; v0.1.2 type document pages stay valid and are recognised by person_contract v1
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      flat references/person-page-schema.md | grep -F '**OKF type:** `person`' >/dev/null
+      flat references/person-page-schema.md | grep -F 'Identify person pages by `person_contract: v1`' >/dev/null
+      flat references/paths/query.md | grep -F 'legacy v0.1.2 `type: document` pages count' >/dev/null
+      flat references/paths/remember.md | grep -F 'New pages use `type: person`' >/dev/null
+      ! rg -n -e 'do not invent overlay[s]' -e '\*\*no\*\* native `perso[n]` type' references/paths references/person-page-schema.md SKILL.md README.md contributions/
+  - id: overlay-mirror-lockstep
+    source: review-feedback-apm-duplicate
+    expect: the .apm mirror still matches the root SKILL.md after the mount step was added
+    check: |
+      cmp SKILL.md .apm/skills/atlas-people/SKILL.md
+      rg -n -F 'Mount the Atlas overlay' .apm/skills/atlas-people/SKILL.md
+  - id: overlay-ships-in-source-package
+    source: review-feedback-release-bundle
+    expect: docs say the overlay ships in the tagged source package (not the apm pack release bundle) and the mount step stops without guessing another source when it is missing; CI runs the overlay smoke from the source checkout and from the consumer-installed package root
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      for f in SKILL.md README.md contributions/atlas-people/README.md; do
+        flat "$f" | grep -F 'plugin bundle attached to GitHub Releases carries the skill only, not' >/dev/null || { echo "missing bundle limitation: $f"; exit 1; }
+        flat "$f" | grep -F 'install from the tagged repository' >/dev/null || { echo "missing install-from-tag advice: $f"; exit 1; }
+        flat "$f" | grep -F 'not fetch or guess another source' >/dev/null || { echo "missing no-guess rule: $f"; exit 1; }
+      done
+      flat SKILL.md | grep -F '**stop this step**' >/dev/null
+      rg -n -F 'OVERLAY_PKG_ROOT' scripts/overlay-smoke.sh README.md
+      ci=.github/workflows/ci.yml
+      rg -n -F 'atlas-people-consumer' "$ci"
+      rg -n -F 'apm_modules/_local/*/contributions/atlas-people/SCHEMA.overlay.json' "$ci"
+      rg -n -F 'templates/person.md' "$ci"
+      rg -n -F 'OVERLAY_PKG_ROOT: ${{ steps.consumer.outputs.pkg_root }}' "$ci"
+      n="$(grep -c -F 'run: bash scripts/overlay-smoke.sh' "$ci" || true)"
+      m="$(grep -c -F '  bash scripts/overlay-smoke.sh' "$ci" || true)"
+      [ "$((n + m))" -ge 2 ] || { echo "CI runs the overlay smoke fewer than twice"; exit 1; }
