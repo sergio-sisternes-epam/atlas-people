@@ -17,7 +17,8 @@ noted about them on the Atlas the operator chooses for person pages.
 1. Identify the Atlas to read (the selected Atlas): the confirmed
    `<target-atlas-id>`, or — read-only — any known or bound Atlas (Enter
    card, install config) or any other Atlas the operator names. Query needs
-   no write confirmation: `atlas_target` may be `unknown` and
+   no write confirmation and no public-visibility acknowledgement:
+   `atlas_target` may be `unknown` (as may `atlas_target_visibility`) and
    `push_remote` may be `none`; the run stays read-only. None known → ask
    the operator which Atlas holds the person pages; no answer → explain the
    contract only and **stop** before any store access.
@@ -53,4 +54,5 @@ noted about them on the Atlas the operator chooses for person pages.
 - Store unmounted or not provisioned
 - Ambiguous person without operator disambiguation
 - Request that would require a write (switch to path `remember`, which asks
-  for and confirms the target first)
+  for and confirms the target first, and asks the separate public-visibility
+  acknowledgement when the target is public or of unknown visibility)

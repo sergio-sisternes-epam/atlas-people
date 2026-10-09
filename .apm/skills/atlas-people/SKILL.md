@@ -62,8 +62,53 @@ live):
 4. **Privacy notes are advice only (non-blocking).** When the chosen target
    is shared, a work or project Atlas, or a public repository branch,
    mention that person pages will be visible to that Atlas's readers and let
-   the operator decide. This advice never blocks a write.
-5. **Fail closed on missing information.** No confirmed target →
+   the operator decide. This advice never blocks a write; the one consent
+   gate for public or unknown-visibility targets is the acknowledgement in
+   rule 5.
+5. **Public-visibility acknowledgement (separate consent gate).** After the
+   operator confirms the target, determine its visibility and record it on
+   the activation card as `atlas_target_visibility`:
+   - `private` — visibility known to be private (the hosting service
+     reports a private repository, or a local-only Atlas with no remote is
+     private). A private target with known visibility
+     (`atlas_target_visibility: private`) needs no extra step.
+   - `public` — the hosting service reports a public repository; not yet
+     acknowledged → no write.
+   - `unknown` — the host cannot be queried, the query fails, or the answer
+     is ambiguous. Treat `unknown` like `public`; never assume private. Not
+     yet acknowledged → no write.
+   - `public-acknowledged` — the operator answered yes to the
+     acknowledgement below for this target.
+
+   Determine visibility from the target's push remote / hosting service
+   when available: for example the hosting API's repository visibility
+   field, such as `gh repo view <owner>/<repo> --json visibility` for
+   GitHub, or the equivalent for other hosts. Do not guess from the
+   repository name. Never store credentials or hostnames in package text
+   (placeholders only).
+
+   When `atlas_target_visibility` is `public` or `unknown`, ask the operator
+   a separate explicit acknowledgement before the first write in the run,
+   and before the overlay mount (which also writes to the store), using
+   exactly this text:
+
+   ```text
+   Person pages will be publicly readable and can't be fully removed (history and forks keep them). Continue?
+   ```
+
+   Only an explicit yes sets `atlas_target_visibility: public-acknowledged`;
+   writes on a public or unknown-visibility target require
+   `atlas_target_visibility: public-acknowledged`. A plain target
+   confirmation (`atlas_target: confirmed`) never counts as this
+   acknowledgement: it is a separate question and answer, asked after the
+   target confirmation. If the target changes, determine visibility and ask
+   for the acknowledgement again. Operator declines (or does not answer) →
+   **stop** with no write (`incomplete: public target not acknowledged`).
+   The target itself is not refused: it stays confirmed, and the operator
+   may choose another target or acknowledge later. Query (read-only) and
+   dry runs (`memory_sync: off`) write nothing and need no acknowledgement.
+   This gate never refuses a target on policy grounds.
+6. **Fail closed on missing information.** No confirmed target →
    `atlas_target: unknown` → **stop** before writing:
    `incomplete: atlas target not confirmed`. Query needs no write
    confirmation: it reads the selected Atlas (a known or operator-named
@@ -72,12 +117,12 @@ live):
    of the selected Atlas fails, or resolves to something other than the
    selected `atlas_id` → **stop**. Never guess, never fall back to a
    remembered value, never copy a value from another skill's docs.
-6. `atlas_root` is filled from EXTERNAL `atlas` `resolve` of the selected
+7. `atlas_root` is filled from EXTERNAL `atlas` `resolve` of the selected
    `atlas_id` (the confirmed target for remember, import-notes, and
    compile/push; the known or operator-named Atlas for query) **before**
    the Enter card is emitted — do not require the operator to pre-fill
    `atlas_root`.
-7. Only placeholders appear in this package. Do not paste live hostnames,
+8. Only placeholders appear in this package. Do not paste live hostnames,
    remotes, absolute checkout paths, SSH identity paths, or personal Atlas
    slugs into skill text, scenarios, CHANGELOG, or commit messages.
 
@@ -131,6 +176,7 @@ atlas_id: <target-atlas-id>          # selected Atlas: confirmed target (writes)
 atlas_root: <atlas-root>             # filled by atlas resolve of atlas_id BEFORE emit
 push_remote: <push-remote> | none    # confirmed with the target; none for read-only query
 atlas_target: confirmed | unknown    # confirmed = operator confirmed this atlas_id for this run; required for remember / import-notes / compile-push only
+atlas_target_visibility: private | public | unknown | public-acknowledged   # public / unknown → no write until the separate acknowledgement sets public-acknowledged; query may stay unknown
 memory_sync: on | off
 compile_push: on | off
 import_scope: <folder id(s) or none>
@@ -153,6 +199,9 @@ invocation: actor-session
   `atlas_target: unknown` → **stop** for any write. Query may still run
   read-only against a known or operator-named Atlas with
   `atlas_target: unknown` and `push_remote: none`.
+- Omitted `atlas_target_visibility` → **`unknown`** (never `private`) until
+  visibility is determined from the confirmed target's push remote /
+  hosting service (Store target rule 5).
 
 ### Fail closed
 
@@ -161,6 +210,14 @@ invocation: actor-session
   → **stop** (`incomplete: atlas target not confirmed`).
 - Target changed since the operator confirmed it → ask and confirm again
   before the next write; no fresh confirmation → **stop**.
+- `atlas_target_visibility` is `public` or `unknown` for remember /
+  import-notes / compile-push → ask the separate public-visibility
+  acknowledgement (exact text in Store target rule 5) before the overlay
+  mount and the first write. Declined or unanswered → **stop** with no
+  write (`incomplete: public target not acknowledged`); the target itself
+  is not refused. `atlas_target: confirmed` never counts as this
+  acknowledgement. A changed target → determine visibility and acknowledge
+  again.
 - Query with `atlas_target: unknown` → read-only: no write, no overlay
   mount, no compile/push. A query that would need a write → switch to
   path `remember`, which asks for and confirms the target first.
@@ -216,8 +273,18 @@ it — never a cwd-relative reinvented copy.
    work or project Atlas, or a public repository branch, add a non-blocking
    note that person pages will be visible to its readers. No confirmation →
    `atlas_target: unknown` → **stop** before writing
-   (`incomplete: atlas target not confirmed`). For query, no write
-   confirmation is needed: select a known or operator-named Atlas to read,
+   (`incomplete: atlas target not confirmed`). Once the target is
+   confirmed, determine its visibility and set `atlas_target_visibility`
+   (Store target rule 5). When it is `public` or `unknown`, ask the
+   separate public-visibility acknowledgement (exact text in rule 5) after
+   the target confirmation and before the overlay mount and the first
+   write; only an explicit yes sets
+   `atlas_target_visibility: public-acknowledged`, and
+   `atlas_target: confirmed` never counts as this acknowledgement.
+   Declined → **stop** with no write
+   (`incomplete: public target not acknowledged`); the target itself is not
+   refused. A private target with known visibility needs no extra step.
+   For query, no write confirmation or acknowledgement is needed: select a known or operator-named Atlas to read,
    leave `atlas_target: unknown` (or `confirmed` if the operator already
    confirmed it this run), set `push_remote: none` when none is confirmed,
    and stay read-only. No Atlas selected → query explains the contract
@@ -278,8 +345,9 @@ declares the type `person` (see `contributions/atlas-people/README.md`).
 into any Atlas. Mounting is a separate, explicit step through EXTERNAL
 **`atlas`** path `schema`. It is never run from **0. Enter**: the remember
 or import-notes path module invokes it exactly once per run, after the path
-module's gates pass (target confirmed, secret-class content redacted or
-rejected, Notes ids and import scope valid, Notes access approved, store
+module's gates pass (target confirmed, public-visibility acknowledgement
+given when the target is public or of unknown visibility, secret-class
+content redacted or rejected, Notes ids and import scope valid, Notes access approved, store
 resolved, merge review settled) and immediately before the first write
 (person page, edge, or review-queue entry). A request that any gate
 rejects never reaches this step, so it never changes `schema.d/` or
@@ -397,6 +465,7 @@ deferral and do not claim a tip.
 - [ ] Operator asked which Atlas the person pages should be stored in (known or bound Atlases offered; any other allowed)
 - [ ] Target explicitly confirmed by the operator before the first write; re-confirmed if it changed
 - [ ] No target refused on policy grounds; privacy note given as advice only when the target is shared, work/project, or public
+- [ ] Target visibility determined from the push remote / hosting service (`atlas_target_visibility` on the card; `unknown` never assumed private); for a public or unknown target, the separate acknowledgement asked with the exact text after the target confirmation and before the overlay mount and first write, and `atlas_target_visibility: public-acknowledged` recorded; declined → `incomplete: public target not acknowledged` with no write and the target not refused; private targets with known visibility need no extra step
 - [ ] Atlas overlay (write runs with `memory_sync: on` only): never mounted from Enter; mounted at most once, by the remember / import-notes path module after its gates passed and immediately before the first write; operator asked before mounting on the confirmed target only (`schema install <pkg-root>/contributions/atlas-people`, then compile green), or already current, or declined (advisory), or unavailable (no overlay at the package root; install from the tagged repository); skipped for query, dry runs, and requests a gate rejected; package ref recorded on the exit receipt
 - [ ] After a package upgrade, the mount re-run from the new package root (`schema uninstall atlas-people`, then `schema install <new-pkg-root>/contributions/atlas-people`, then compile) on each Atlas that holds the overlay, after asking the operator
 - [ ] New person pages use `type: person`; legacy `type: document` pages retyped only where the overlay is mounted

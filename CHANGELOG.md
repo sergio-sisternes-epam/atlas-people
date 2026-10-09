@@ -22,6 +22,17 @@ the `person` type.
   grounds.
 - Privacy notes about visibility on shared, work/project, or public targets
   are advisory and never block.
+- New separate public-visibility acknowledgement: after the target is
+  confirmed, the skill determines its visibility from the push remote /
+  hosting service (failed or ambiguous lookups are `unknown`, never assumed
+  private) and, for a public or unknown target, asks "Person pages will be
+  publicly readable and can't be fully removed (history and forks keep
+  them). Continue?" before the overlay mount and the first write. Consent is
+  recorded as `atlas_target_visibility: public-acknowledged`;
+  `atlas_target: confirmed` alone never counts. Declining stops with no
+  write (`incomplete: public target not acknowledged`) without refusing the
+  target. Private targets with known visibility and query are unaffected.
+  New scenario file `people-public-ack-v1.yaml`.
 - Stop string renamed from `incomplete: missing people store binding` to
   `incomplete: atlas target not confirmed`; placeholder renamed from
   `<people-atlas-id>` to `<target-atlas-id>`.

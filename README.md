@@ -43,6 +43,20 @@ confirms it. When the target is shared, a work or project Atlas, or a public
 repository branch, the skill notes that person pages will be visible to that
 Atlas's readers — advice only, never a block.
 
+Public or unknown-visibility targets need one extra, separate consent. After
+the target is confirmed, the skill determines its visibility from the push
+remote / hosting service (a local-only Atlas with no remote is private; a
+failed or ambiguous lookup is `unknown`, never assumed private) and records
+it on the card as `atlas_target_visibility`. For a public or unknown target
+it asks, before the overlay mount and the first write: "Person pages will be
+publicly readable and can't be fully removed (history and forks keep them).
+Continue?" Only an explicit yes sets
+`atlas_target_visibility: public-acknowledged`; `atlas_target: confirmed`
+never counts as this acknowledgement. Declining stops with no write
+(`incomplete: public target not acknowledged`); the target itself is not
+refused. Private targets with known visibility need no extra step, and query
+needs no acknowledgement.
+
 Council decisions and principles belong to a separate
 council/decision-memory skill, not to this one.
 
