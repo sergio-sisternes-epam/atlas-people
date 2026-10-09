@@ -1,0 +1,71 @@
+id: people-privacy-adversarial-v1
+packages:
+  - atlas-people
+work_id: 2026-10-05-people-privacy
+adversarial: true
+# Patterns use bracket classes (e.g. `[.]ss[h]`) so this file never contains
+# the literal strings it forbids. Run every check from the package root
+# (bash scripts/run-scenarios.sh); text scans include hidden paths such as
+# .apm/ and .github/ but skip .git/.
+smokes:
+  - id: no-private-hostname-url
+    source: challenge-C5-publish-time-scrub
+    expect: package text has no private hostname or private remote URL patterns
+    check: |
+      ! rg -n -i --hidden -g '!.git/' -e 'ses[i]spla' -e '[a-z0-9_-]+@[a-z0-9.-]+:repos/' .
+  - id: no-home-box-absolute
+    source: challenge-C5-publish-time-scrub
+    expect: no absolute home-directory paths as normative checkout or install targets
+    check: |
+      ! rg -n --hidden -g '!.git/' '/hom[e]/' .
+  - id: no-ssh-identity-path
+    source: review-feedback-ssh-path
+    expect: no SSH private-key paths or identity flags in package text
+    check: |
+      ! rg -n --hidden -g '!.git/' -e '[.]ss[h]/' -e 'IdentitiesOnl[y]' -e 'GIT_SSH_COMMAND=.*[ ]-[i][ ]' .
+  - id: no-personal-atlas-slug
+    source: pin-role-language
+    expect: no personal Atlas slug prefix appears in package text; the operator supplies the forbidden prefixes via PEOPLE_FORBIDDEN_SLUGS, and the smoke records a deferral when unset
+    check: |
+      # PEOPLE_FORBIDDEN_SLUGS: space- or comma-separated regular expressions.
+      # This package ships none of the prefixes itself.
+      if [ -z "${PEOPLE_FORBIDDEN_SLUGS:-}" ]; then echo "deferred: PEOPLE_FORBIDDEN_SLUGS unset"; exit 0; fi
+      IFS=', ' read -r -a pats <<< "$PEOPLE_FORBIDDEN_SLUGS"
+      args=()
+      for p in "${pats[@]}"; do if [ -n "$p" ]; then args+=(-e "$p"); fi; done
+      if [ "${#args[@]}" -eq 0 ]; then echo "deferred: PEOPLE_FORBIDDEN_SLUGS unset"; exit 0; fi
+      rc=0; rg -n --hidden -g '!.git/' "${args[@]}" . || rc=$?
+      # rg exits 1 for "no match"; 0 is a hit and 2 is an error (bad regex).
+      [ "$rc" -eq 1 ]
+  - id: operator-store-binding
+    source: atlas-tasks-todoist-precedent
+    expect: Enter card and path modules require operator-supplied atlas_id / push_remote and fail closed
+    check: |
+      rg -n 'atlas_target: confirmed' SKILL.md references/paths/remember.md references/paths/import-notes.md
+      rg -n 'incomplete: missing people store binding' SKILL.md references/paths/remember.md references/paths/import-notes.md
+      rg -n '<people-atlas-id>' SKILL.md README.md references/paths/query.md references/person-page-schema.md
+      rg -n '<push-remote>' SKILL.md README.md
+      rg -n 'operator Enter card or install config' SKILL.md
+  - id: role-forbid-nest
+    source: pin-role-language
+    expect: nesting into any non-people Atlas (the operator's personal or work Atlas, another agent's Atlas) still forbidden in role language
+    check: |
+      rg -n 'non-people Atlas' SKILL.md README.md references/person-page-schema.md
+      rg -n 'personal or work Atlas' SKILL.md README.md
+      rg -n 'Forbidden write-homes|Never write|Never nest' SKILL.md README.md
+  - id: role-neutral-wording
+    source: pin-role-language
+    expect: no private fleet role names, private skill names, or private-install-only rules remain in package text
+    check: |
+      ! rg -n --hidden -g '!.git/' -e '\bHan[d]\b' -e 'Han[d]-owned' -e 'Grand Maeste[r]' -e 'Maste[r] of Packages' -e '\bMo[P]\b' -e '\bEPA[M]\b' -e 'Grok Bo[t]' -e 'grok-bo[t]-skills' -e '[Nn]ever publis[h]' .
+  - id: yaml-column-zero
+    source: review-feedback-yaml-indent
+    expect: every scenario file parses and its top-level keys start at column 0
+    check: |
+      python3 -c 'import pathlib,sys,yaml; fs=sorted(pathlib.Path("references/scenarios").glob("*.yaml")); assert fs; [yaml.safe_load(f.read_text()) for f in fs]; bad=[str(f) for f in fs if f.read_text()[:1].isspace()]; sys.exit("leading indent: %s" % bad if bad else 0)'
+  - id: version-shape-not-frozen-only
+    source: review-feedback-version-pin
+    expect: version smoke checks SemVer shape, not one frozen patch string
+    check: |
+      rg -n '^version: "[0-9]+\.[0-9]+\.[0-9]+"$' apm.yml
+      ! rg -n 'version: "0[.]1[.]0"' references/scenarios/

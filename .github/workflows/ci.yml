@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile-and-smoke:
+    name: Compile and smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install APM and PyYAML
+        run: python3 -m pip install apm-cli pyyaml
+      - name: Install ripgrep
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+      - name: Consumer install and compile
+        run: |
+          consumer="$(mktemp -d)"
+          cd "$consumer"
+          apm install "$GITHUB_WORKSPACE" --target agent-skills,cursor
+          apm compile --validate --target agent-skills,cursor
+          test -f .agents/skills/atlas-people/SKILL.md
+      - name: Run scenario smokes
+        env:
+          # Optional repository variable; the smoke records a deferral when unset.
+          PEOPLE_FORBIDDEN_SLUGS: ${{ vars.PEOPLE_FORBIDDEN_SLUGS }}
+        run: bash scripts/run-scenarios.sh
+      - name: Pack dry run
+        run: apm pack --dry-run

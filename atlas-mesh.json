@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "stores": [
+    {
+      "id": "github.com/sergio-sisternes-epam/atlas-people",
+      "ref": "atlas",
+      "path": ".atlas/github.com/sergio-sisternes-epam/atlas-people",
+      "strategy": "shared",
+      "role": "autogenesis-subject",
+      "note": "Design memory (Autogenesis plans and experiences) for this skill lives on this repository's atlas branch. It is never the people write-home; the runtime people store is operator-supplied (Enter card or install config) and is not declared here."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+name: atlas-people
+version: "0.1.2"
+description: >-
+  People Atlas skill: query and remember people and typed relationships on an
+  operator-supplied people store; one-shot Apple Notes import with id-safe
+  source pointers.
+author: Sergio Sisternes
+license: Apache-2.0
+type: skill
+targets:
+  - agent-skills
+  - cursor
+dependencies:
+  apm: []
+  # Compose pins installed alongside this skill: atlas,
+  # atlas-compile-commit-push, apple-notes. Not declared as APM dependencies.
+  mcp: []
+includes: auto
+scripts: {}

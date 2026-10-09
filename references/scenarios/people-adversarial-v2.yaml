@@ -1,0 +1,116 @@
+id: people-adversarial-v2
+packages:
+  - atlas-people
+work_id: 2026-10-05-people-privacy
+supersedes: people-adversarial-v1 (work_id 2026-10-05-people-atlas; never released, and it embedded private identifiers, so it is not carried)
+adversarial: true
+# Run every check from the package root (bash scripts/run-scenarios.sh).
+smokes:
+  - id: no-nest-other-atlas
+    source: pin-ownership
+    expect: skill and process docs forbid writing people pages into any non-people Atlas (role language)
+    check: |
+      rg -n 'non-people Atlas' SKILL.md README.md references/
+      rg -n 'Never write|Forbidden write-homes|never write people pages|Never nest' SKILL.md README.md
+  - id: stable-person-id-not-cncontact
+    source: public-cncontact-identity-note
+    expect: person primary id is Atlas-owned; CNContact ids only as optional source pointers
+    check: |
+      rg -n 'person_id|Atlas-owned' SKILL.md references/person-page-schema.md
+      rg -n 'CNContact|source pointers only|Never use CNContact' SKILL.md references/person-page-schema.md references/paths/remember.md
+  - id: notes-id-not-title
+    source: apple-notes-mcp-duplicate-title-fix
+    expect: import procedure requires note id for source pointers; title-only targeting is a blocker
+    check: |
+      rg -n 'note id|Notes \*\*id\*\*|Title-only' SKILL.md references/paths/import-notes.md references/paths/remember.md
+      rg -n 'Title-only targeting is a blocker' SKILL.md
+      rg -n 'no title-only Notes targeting' SKILL.md
+      ! rg -n 'no title-only Notes id' SKILL.md
+  - id: no-name-only-merge
+    source: public-personal-wiki-dedup-note
+    expect: auto-merge never keys on name alone; single-token names stay unmerged
+    check: |
+      rg -n 'Never auto-merge on name|no name-only merge|name alone' SKILL.md references/paths/import-notes.md references/person-page-schema.md
+      rg -n 'single-token|Single-token names stay unmerged' SKILL.md references/paths/remember.md references/person-page-schema.md
+  - id: one-shot-no-watcher
+    source: pin-notes-one-shot
+    expect: no continuous Notes sync loop or schedule in v0 skill body
+    check: |
+      rg -n 'one-shot|One-shot|no continuous|No watcher' SKILL.md references/paths/import-notes.md
+      ! rg -n 'cron|schedule:|continuous sync watcher|watch Notes' SKILL.md references/paths/
+  - id: linkedin-deferred
+    source: pin-notes-first
+    expect: LinkedIn ingest absent from v0 procedures except as explicit non-goal / later overlay note
+    check: |
+      rg -n 'LinkedIn' SKILL.md README.md
+      rg -n 'non-goal|deferred|Not selected|later overlay' SKILL.md README.md
+      ! rg -n 'path:.*linkedin|import-linkedin' references/paths/
+  - id: no-secret-location
+    source: pin-secrets-standing
+    expect: skill says 1Password is the vault when needed and does not name item, vault, or id
+    check: |
+      rg -n '1Password is the vault' SKILL.md README.md CHANGELOG.md
+      ! rg -n 'op:/[/]|vault_id\s*:|item_id\s*:|vault UUID' SKILL.md README.md CHANGELOG.md apm.yml references/paths/ references/person-page-schema.md
+  - id: no-secret-class-in-atlas
+    source: pin-secrets-standing
+    expect: passwords and SSN-class values are forbidden in person pages and import excerpts
+    check: |
+      rg -n 'password|SSN-class|secret-class' SKILL.md references/person-page-schema.md references/paths/
+  - id: skip-locked-notes
+    source: apple-notes-locked-e2e
+    expect: locked notes are skipped with a count; bodies are not invented
+    check: |
+      rg -n 'locked|skip count|do not invent' references/paths/import-notes.md SKILL.md
+  - id: import-scope-required
+    source: pin-bounded-import
+    expect: import-notes refuses whole-library default without explicit folder scope
+    check: |
+      rg -n 'import_scope|folder scope|whole library|whole-library' SKILL.md references/paths/import-notes.md
+      rg -n 'Refuse unbounded|folder scope required|import_scope.*none' SKILL.md references/paths/import-notes.md
+  - id: package-shape
+    source: evaluation-plan
+    expect: root SKILL.md named atlas-people; hybrid .apm copy at the matching path; apm.yml name matches and version is SemVer-shaped
+    check: |
+      test -f SKILL.md
+      test -f .apm/skills/atlas-people/SKILL.md
+      test ! -e .apm/skills/people
+      rg -n '^name: atlas-people$' SKILL.md
+      rg -n '^name: atlas-people$' apm.yml
+      rg -n '^version: "[0-9]+\.[0-9]+\.[0-9]+"$' apm.yml
+  - id: apm-mirror-lockstep
+    source: review-feedback-apm-duplicate
+    expect: .apm mirror is byte-identical to the canonical root SKILL.md, and the lockstep rule is documented
+    check: |
+      cmp SKILL.md .apm/skills/atlas-people/SKILL.md
+      rg -n 'same commit' SKILL.md README.md
+  - id: release-tag-docs
+    source: evaluation-plan
+    expect: CHANGELOG has a heading for the apm.yml version; install examples cite the matching vX.Y.Z tag; no monorepo-style tag prefixes remain
+    check: |
+      v="$(python3 -c 'import yaml; print(yaml.safe_load(open("apm.yml"))["version"])')"
+      rg -n -F "## $v " CHANGELOG.md
+      rg -n -F "sergio-sisternes-epam/atlas-people#v$v" README.md
+      rg -n -F "sergio-sisternes-epam/atlas-people#v$v" SKILL.md
+      ! rg -n --hidden -g '!.git/' 'people/v[0-9]' .
+  - id: council-memory-route
+    source: review-feedback-readme-wording
+    expect: README routes council memory to a separate council/decision-memory skill in plain words, without naming a private skill
+    check: |
+      rg -n -U 'separate\s+council/decision-memory\s+skill, not to this one' README.md
+      ! rg -n --hidden -g '!.git/' -e 'council settl[e]' -e 'han[d]-council' .
+  - id: atlas-mesh-subject-vs-runtime
+    source: evaluation-plan
+    expect: package atlas-mesh.json declares this repository's atlas branch as the Autogenesis subject only; runtime people store is operator-supplied
+    check: |
+      python3 -c 'import json; d=json.load(open("atlas-mesh.json")); s=d["stores"]; assert len(s)==1 and s[0]["role"]=="autogenesis-subject" and s[0]["id"]=="github.com/sergio-sisternes-epam/atlas-people" and s[0]["ref"]=="atlas" and s[0]["path"]==".atlas/github.com/sergio-sisternes-epam/atlas-people", s'
+      rg -n 'operator-supplied' atlas-mesh.json SKILL.md README.md
+      rg -n "this repository's .atlas. branch" SKILL.md
+      rg -n "this repository's .atlas. branch" README.md
+  - id: people-store-live-or-deferred
+    source: evaluation-plan
+    expect: live git ls-remote smoke green against the operator-supplied remote, or explicit deferral when unset / not provisioned
+    check: |
+      # Operator supplies PEOPLE_PUSH_REMOTE (and any transport settings) in the
+      # environment; this package ships neither.
+      if [ -z "${PEOPLE_PUSH_REMOTE:-}" ]; then echo "deferred: PEOPLE_PUSH_REMOTE unset (operator-supplied)"; exit 0; fi
+      git ls-remote "$PEOPLE_PUSH_REMOTE" HEAD || { echo "deferred: awaiting store provision or unreachable"; exit 0; }
