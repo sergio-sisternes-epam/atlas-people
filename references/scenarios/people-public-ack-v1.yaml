@@ -70,7 +70,7 @@ smokes:
       flat SKILL.md | grep -F 'If the target changes, determine visibility and ask for the acknowledgement again.' >/dev/null
   - id: public-ack-mirror-and-paths
     source: owner-design-public-ack
-    expect: the .apm mirror carries the gate byte-identically; the remember and import-notes modules gate the overlay mount on it; the fail-closed list and exit checklist carry it; query needs no acknowledgement
+    expect: the .apm mirror carries the gate byte-identically; the remember and import-notes modules gate the overlay mount on it; the fail-closed list and exit checklist carry it; recall needs no acknowledgement
     check: |
       flat() { tr -s '\n ' '  ' < "$1"; }
       cmp SKILL.md .apm/skills/atlas-people/SKILL.md
@@ -82,7 +82,7 @@ smokes:
       flat SKILL.md | grep -F 'public-visibility acknowledgement given when the target is public or of unknown visibility' >/dev/null
       flat SKILL.md | grep -F -e '- `atlas_target_visibility` is `public` or `unknown` for remember / import-notes / compile-push → ask the separate public-visibility acknowledgement' >/dev/null
       rg -n -F -- '- [ ] Target visibility determined from the push remote / hosting service' SKILL.md
-      flat references/paths/query.md | grep -F 'no write confirmation and no public-visibility acknowledgement' >/dev/null
+      flat references/paths/recall.md | grep -F 'no write confirmation and no public-visibility acknowledgement' >/dev/null
   - id: local-only-none-can-write
     source: review-feedback-local-only-target
     expect: a local-only Atlas with no remote is a valid private write target once the operator confirms push_remote none as part of the target confirmation; publishing is disabled (compile runs, push skipped and recorded, not an incomplete exit) and none is never the default when a remote exists
@@ -91,7 +91,7 @@ smokes:
       flat SKILL.md | grep -F 'For a local-only Atlas with no remote, the operator confirms `push_remote: none` as part of this target confirmation; that target is valid for writes with publishing disabled' >/dev/null
       flat SKILL.md | grep -F 'Never default to `push_remote: none` when the target has a remote.' >/dev/null
       flat SKILL.md | grep -F 'so a confirmed local-only target with `push_remote: none` is `private`' >/dev/null
-      flat SKILL.md | grep -F 'none = read-only query, or a confirmed local-only target (writes allowed, publishing disabled)' >/dev/null
+      flat SKILL.md | grep -F 'none = read-only recall, or a confirmed local-only target (writes allowed, publishing disabled)' >/dev/null
       flat SKILL.md | grep -F '`push_remote: none` on a write run (remember / import-notes) is valid only for a local-only Atlas with no remote, and only when the operator confirmed `none` as part of the target confirmation.' >/dev/null
       flat SKILL.md | grep -F 'the push step is skipped and recorded (not an incomplete exit), and `atlas_target_visibility` is `private`' >/dev/null
       flat SKILL.md | grep -F 'Exception: with a confirmed `push_remote: none` (local-only target) the push step is skipped and recorded, not an incomplete exit.' >/dev/null

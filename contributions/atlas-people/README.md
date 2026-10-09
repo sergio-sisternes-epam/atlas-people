@@ -34,7 +34,7 @@ Atlas compile can check it.
 
 Pages written by atlas-people v0.1.2 use `type: document` with
 `person_contract: v1`. They stay valid: Atlas treats them as ordinary
-`document` pages, and the skill's query path recognises person pages by
+`document` pages, and the skill's recall path recognises person pages by
 `person_contract: v1` whatever their `type`. The remember path may set
 `type: person` when it next updates such a page, but only on an Atlas where
 this overlay is mounted; otherwise it leaves the type as it is. New person
@@ -52,11 +52,11 @@ pages use `type: person`.
 `apm install` only installs the skill package. It never mounts this overlay
 into any Atlas. Mount it explicitly, and only on the Atlas the operator named
 and confirmed as the target for person pages, on a real write run
-(remember or import-notes with `memory_sync: on`). Query and dry runs never
+(remember or import-notes with `memory_sync: on`). Recall and dry runs never
 mount it, because mounting changes `schema.d/` and `templates/`:
 
 ```bash
-apm install sergio-sisternes-epam/atlas-people#v0.1.3
+apm install sergio-sisternes-epam/atlas-people#v0.1.4
 # Package root: apm_modules/sergio-sisternes-epam/atlas-people/
 # (confirm the tag in apm.lock.yaml)
 python3 <atlas-skill>/scripts/atlas.py schema install \

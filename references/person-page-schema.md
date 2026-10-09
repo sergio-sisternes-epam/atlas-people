@@ -19,7 +19,7 @@ skill).
 
 Pages written by v0.1.2 use `type: document` with `person_contract: v1`.
 They stay valid. Identify person pages by `person_contract: v1`, not by
-`type`: query recognises both `type: person` and `type: document` person
+`type`: recall recognises both `type: person` and `type: document` person
 pages. When remember updates a legacy page, it may set `type: person` only
 on an Atlas where the overlay is mounted; otherwise it leaves `type` as it
 is. New person pages always use `type: person`.
@@ -65,12 +65,16 @@ aliases: []
 
 ```yaml
 sources:
-  - kind: apple-notes   # apple-notes | linkedin | manual
-    id: "<note-id>"     # Notes id required for apple-notes; never title alone
+  - kind: notes         # notes | linkedin | manual
+    app: "<source-app>" # optional; e.g. apple-notes, obsidian, markdown-export
+    id: "<note-id>"     # stable note id required; never title alone
     folder_id: "<folder-id>"  # optional but preferred
     url: null           # optional
     captured_at: "YYYY-MM-DD"
 ```
+
+Existing pages with `kind: apple-notes` pointers stay valid: read them as
+`kind: notes` with `app: apple-notes`.
 
 Notes excerpts in body or frontmatter:
 
@@ -110,8 +114,8 @@ relates_to:
 ## Forbidden content
 
 - Passwords, SSN-class identifiers, payment-card numbers
-- 1Password item titles, vault names, or ids (say only that 1Password is the
-  vault when credentials are needed)
+- Password-manager item titles, vault names, or ids (say only that
+  credentials are in the password manager or secret store when needed)
 - Using CNContact id or Notes title as `person_id`
 
 ## Identity match rules (import / remember)
