@@ -3,6 +3,11 @@
 #
 # Usage: ATLAS_CLI=<path/to/atlas/scripts/atlas.py> bash scripts/overlay-smoke.sh
 #        ATLAS_CLIS="<cli-a> <cli-b>" bash scripts/overlay-smoke.sh
+#        OVERLAY_PKG_ROOT=<installed-pkg-root> ATLAS_CLIS=... bash scripts/overlay-smoke.sh
+#
+# OVERLAY_PKG_ROOT (optional, default: this repository's root) is the package
+# root whose contributions/atlas-people/ is checked and installed, for example
+# apm_modules/_local/<name> after a consumer `apm install <dir>`.
 #
 # 1. Static check (always): overlay root keys are contract-only
 #    (contribution_id, templates), contribution_id is atlas-people, the only
@@ -30,12 +35,18 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-contrib="$root/contributions/atlas-people"
 py="${PYTHON:-python3}"
 
 command -v "$py" >/dev/null || { echo "overlay-smoke: python3 is required" >&2; exit 2; }
 
 fail() { echo "overlay-smoke: FAIL: $*" >&2; exit 1; }
+
+pkg_root="${OVERLAY_PKG_ROOT:-$root}"
+[ -d "$pkg_root" ] || fail "OVERLAY_PKG_ROOT is not a directory: $pkg_root"
+pkg_root="$(cd "$pkg_root" && pwd)"
+contrib="$pkg_root/contributions/atlas-people"
+[ -f "$contrib/SCHEMA.overlay.json" ] || fail "no contributions/atlas-people/SCHEMA.overlay.json under package root: $pkg_root"
+echo "overlay-smoke: package root $pkg_root"
 
 clis=()
 if [ -n "${ATLAS_CLIS:-}" ]; then

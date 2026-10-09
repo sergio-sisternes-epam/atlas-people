@@ -65,6 +65,13 @@ python3 <atlas-skill>/scripts/atlas.py schema install \
 python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>
 ```
 
+This overlay ships in the tagged source package that the `apm install`
+above places. The `apm pack` plugin bundle attached to GitHub Releases
+carries the skill only, not this overlay. If `<pkg-root>` has no
+`contributions/atlas-people/SCHEMA.overlay.json` (a bundle-only or
+deployed-skill-only install), stop the mount and install from the tagged
+repository; do not fetch or guess another source.
+
 ## Upgrade
 
 After `apm install sergio-sisternes-epam/atlas-people#vNEW` or `apm update`,

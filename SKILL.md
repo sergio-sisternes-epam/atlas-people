@@ -297,6 +297,14 @@ mutation. Record `overlay: skipped` on the receipt.
    where it was installed (`<pkg-root>`). Confirm the tag
    (`resolved_ref` / `version`) in `apm.lock.yaml`, and check that
    `<pkg-root>/contributions/atlas-people/SCHEMA.overlay.json` exists.
+   The overlay ships in the tagged source package that this install
+   places; the `apm pack` plugin bundle attached to GitHub Releases
+   carries the skill only, not the overlay. If the file is missing (for
+   example a bundle-only or deployed-skill-only install), **stop this
+   step**: tell the operator to install from the tagged repository
+   (`apm install sergio-sisternes-epam/atlas-people#v0.1.3`), record
+   `overlay: unavailable`, and continue as for a declined mount. Do not
+   fetch or guess another source.
 2. **Check the confirmed target.** Mount only on the Atlas the operator
    confirmed as the target for this run (`<atlas-root>` from
    `atlas resolve`). Never mount on an Atlas the operator did not name and
@@ -321,7 +329,7 @@ mutation. Record `overlay: skipped` on the receipt.
    editing `schema.d/` by hand.
 5. **Record the package ref** (tag or commit from `apm.lock.yaml`) on the
    exit receipt, for example
-   `overlay: mounted | current | upgraded | declined | skipped` and
+   `overlay: mounted | current | upgraded | declined | skipped | unavailable` and
    `source: sergio-sisternes-epam/atlas-people#v0.1.3`.
 
 **Upgrade.** After `apm install sergio-sisternes-epam/atlas-people#vNEW` or
@@ -389,7 +397,7 @@ deferral and do not claim a tip.
 - [ ] Operator asked which Atlas the person pages should be stored in (known or bound Atlases offered; any other allowed)
 - [ ] Target explicitly confirmed by the operator before the first write; re-confirmed if it changed
 - [ ] No target refused on policy grounds; privacy note given as advice only when the target is shared, work/project, or public
-- [ ] Atlas overlay (write runs with `memory_sync: on` only): never mounted from Enter; mounted at most once, by the remember / import-notes path module after its gates passed and immediately before the first write; operator asked before mounting on the confirmed target only (`schema install <pkg-root>/contributions/atlas-people`, then compile green), or already current, or declined (advisory); skipped for query, dry runs, and requests a gate rejected; package ref recorded on the exit receipt
+- [ ] Atlas overlay (write runs with `memory_sync: on` only): never mounted from Enter; mounted at most once, by the remember / import-notes path module after its gates passed and immediately before the first write; operator asked before mounting on the confirmed target only (`schema install <pkg-root>/contributions/atlas-people`, then compile green), or already current, or declined (advisory), or unavailable (no overlay at the package root; install from the tagged repository); skipped for query, dry runs, and requests a gate rejected; package ref recorded on the exit receipt
 - [ ] After a package upgrade, the mount re-run from the new package root (`schema uninstall atlas-people`, then `schema install <new-pkg-root>/contributions/atlas-people`, then compile) on each Atlas that holds the overlay, after asking the operator
 - [ ] New person pages use `type: person`; legacy `type: document` pages retyped only where the overlay is mounted
 - [ ] Path module followed; person contract observed

@@ -154,3 +154,23 @@ smokes:
     check: |
       cmp SKILL.md .apm/skills/atlas-people/SKILL.md
       rg -n -F 'Mount the Atlas overlay' .apm/skills/atlas-people/SKILL.md
+  - id: overlay-ships-in-source-package
+    source: review-feedback-release-bundle
+    expect: docs say the overlay ships in the tagged source package (not the apm pack release bundle) and the mount step stops without guessing another source when it is missing; CI runs the overlay smoke from the source checkout and from the consumer-installed package root
+    check: |
+      flat() { tr -s '\n ' '  ' < "$1"; }
+      for f in SKILL.md README.md contributions/atlas-people/README.md; do
+        flat "$f" | grep -F 'plugin bundle attached to GitHub Releases carries the skill only, not' >/dev/null || { echo "missing bundle limitation: $f"; exit 1; }
+        flat "$f" | grep -F 'install from the tagged repository' >/dev/null || { echo "missing install-from-tag advice: $f"; exit 1; }
+        flat "$f" | grep -F 'not fetch or guess another source' >/dev/null || { echo "missing no-guess rule: $f"; exit 1; }
+      done
+      flat SKILL.md | grep -F '**stop this step**' >/dev/null
+      rg -n -F 'OVERLAY_PKG_ROOT' scripts/overlay-smoke.sh README.md
+      ci=.github/workflows/ci.yml
+      rg -n -F 'atlas-people-consumer' "$ci"
+      rg -n -F 'apm_modules/_local/*/contributions/atlas-people/SCHEMA.overlay.json' "$ci"
+      rg -n -F 'templates/person.md' "$ci"
+      rg -n -F 'OVERLAY_PKG_ROOT: ${{ steps.consumer.outputs.pkg_root }}' "$ci"
+      n="$(grep -c -F 'run: bash scripts/overlay-smoke.sh' "$ci" || true)"
+      m="$(grep -c -F '  bash scripts/overlay-smoke.sh' "$ci" || true)"
+      [ "$((n + m))" -ge 2 ] || { echo "CI runs the overlay smoke fewer than twice"; exit 1; }

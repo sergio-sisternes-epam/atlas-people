@@ -71,6 +71,11 @@ the `person` type.
   stores; the pin matches Atlas `scripts/requirements-ci.txt`), checks out
   the Atlas CLI at v0.13.1 and v0.13.0, and runs the overlay smoke against
   both.
+- The overlay ships in the tagged source package
+  (`apm install sergio-sisternes-epam/atlas-people#vX.Y.Z`), not in the
+  release plugin bundle, which carries the skill only; the mount step stops
+  when the package root lacks it. CI also runs the overlay smoke from a
+  consumer-installed package (`OVERLAY_PKG_ROOT`).
 
 ## 0.1.2 — 2026-10-09
 

@@ -99,6 +99,15 @@ python3 <atlas-skill>/scripts/atlas.py schema install \
 python3 <atlas-skill>/scripts/atlas.py compile --root <atlas-root>
 ```
 
+The overlay ships in the tagged source package that
+`apm install sergio-sisternes-epam/atlas-people#vX.Y.Z` places under
+`apm_modules/sergio-sisternes-epam/atlas-people/`. The `apm pack` plugin
+bundle attached to GitHub Releases carries the skill only, not the overlay.
+If the package root has no `contributions/atlas-people/SCHEMA.overlay.json`
+(a bundle-only or deployed-skill-only install), the skill stops the mount
+step and asks the operator to install from the tagged repository; it does
+not fetch or guess another source.
+
 After `apm install sergio-sisternes-epam/atlas-people#vNEW` or `apm update`,
 re-run the mount on the confirmed target, after asking the operator:
 `schema uninstall atlas-people --root <atlas-root>`, then
@@ -151,7 +160,10 @@ unset:
 - `ATLAS_CLI` — path to an Atlas checkout's `scripts/atlas.py` for the
   overlay smoke. `scripts/overlay-smoke.sh` also accepts `ATLAS_CLIS`, a
   space-separated list, and runs each CLI against fresh SCHEMA 1.0 and 2.0
-  stores (needs `jsonschema` for 2.0 stores).
+  stores (needs `jsonschema` for 2.0 stores). Set `OVERLAY_PKG_ROOT` to an
+  installed package root (for example `apm_modules/_local/<name>` after a
+  local-path install) to smoke that copy of the overlay instead of the
+  checkout.
 
 Before publishing, run the public hygiene scan (tree, commit metadata, added
 lines, and gitleaks when installed):
@@ -162,7 +174,8 @@ bash scripts/public-hygiene-scan.sh --all
 
 CI (`.github/workflows/`) runs **Compile and smoke** (consumer install,
 `apm compile --validate`, Atlas overlay smoke against Atlas v0.13.1 and
-v0.13.0, scenario runner, `apm pack --dry-run`) and
+v0.13.0 from both the source checkout and the consumer-installed package,
+scenario runner, `apm pack --dry-run`) and
 **Public hygiene scan**. Pushing a `v*` tag runs the release workflow, which
 packs and publishes a GitHub Release.
 
