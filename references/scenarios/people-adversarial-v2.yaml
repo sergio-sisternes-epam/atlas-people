@@ -120,7 +120,17 @@ smokes:
     check: |
       files=(SKILL.md README.md apm.yml references/paths references/person-page-schema.md contributions .apm/)
       if rg -n -i 'EXTERNAL.{0,40}apple.?notes|apple.?notes.{0,40}EXTERNAL|apple-notes.*compose|compose.*apple-notes|\bop (read|item)\b|op:/[/]|Mac \+ Automation' "${files[@]}"; then exit 1; fi
-      if rg -n -i 'Apple Notes|1Password' "${files[@]}" | grep -v -F 'e.g.'; then echo "Apple Notes / 1Password named outside an e.g. example"; exit 1; fi
+      if rg -n -i 'Apple Notes|1Password' "${files[@]}" | python3 -c 'import re, sys
+      mentions = re.compile(r"apple.?notes|1password", re.I)
+      examples = re.compile(r"e\.g\.", re.I)
+      bad = False
+      for line in sys.stdin:
+          text = line.rstrip("\n").split(":", 2)[-1]
+          for mention in mentions.finditer(text):
+              if not any(example.end() <= mention.start() and not re.search(r"[).;:!?]", text[example.end():mention.start()]) for example in examples.finditer(text)):
+                  print(line, end="")
+                  bad = True
+      sys.exit(0 if bad else 1)'; then echo "Apple Notes / 1Password named outside an e.g. example"; exit 1; fi
       rg -n -i 'password manager or secret store' SKILL.md README.md references/paths/
       rg -n -i 'any notes app or export|any notes app or.*export|notes app or export' SKILL.md README.md references/paths/import-notes.md
   - id: recall-path-and-query-alias
