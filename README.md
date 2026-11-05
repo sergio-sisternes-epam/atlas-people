@@ -4,7 +4,7 @@ atlas-people lets an agent query and remember people and typed relationships as 
 
 ## Why / what this is not
 
-Person pages are data in the operator's Atlas, not skill process memory. The package does not choose a store, sync Apple Notes continuously, or replace Contacts.app. Every write requires the operator to confirm the specific Atlas and push target for that run. After target confirmation, public or unknown-visibility targets require separate consent before the first write and overlay mount:
+Person pages are data in the operator's Atlas, not skill process memory. The package does not choose a store, sync Apple Notes continuously, ingest LinkedIn, or replace Contacts.app. Every write requires the operator to confirm the specific Atlas and push target for that run. After target confirmation, public or unknown-visibility targets require separate consent before the first write and overlay mount:
 
 > Person pages will be publicly readable and can't be fully removed (history and forks keep them). Continue?
 
